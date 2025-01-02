@@ -1,4 +1,6 @@
 appartners/__pycache__/*.pyc
+users/__pycache__/*.pyc
+users/migrations/__pycache__/*.pyc
 db.sqlite3
 .idea/
 venv/
