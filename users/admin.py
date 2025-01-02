@@ -35,6 +35,7 @@ class UserDetailsAdmin(admin.ModelAdmin):
     def full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
 
+#TODO: add here a class for UserPreferences admin
 
 # Register the models and admin classes
 admin.site.register(LoginInfo, LoginInfoAdmin)

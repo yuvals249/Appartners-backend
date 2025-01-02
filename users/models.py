@@ -1,9 +1,11 @@
 from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ValidationError
 from django.db import models
 import uuid
 
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.utils.timezone import now
 
 
 # Create your models here.
@@ -14,7 +16,7 @@ class LoginInfo(models.Model):
         editable=False,
         unique=True
     )
-    email = models.EmailField()
+    email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)  # Encrypted Password
 
     def save(self, *args, **kwargs):
@@ -32,9 +34,41 @@ class UserDetails(models.Model):
     occupation = models.CharField(max_length=200)
     birth_date = models.DateField()
     address = models.CharField(max_length=200)
-    phone_number = models.CharField(max_length=15)
+    phone_number = models.CharField(max_length=15, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+class UserPreferences(models.Model):
+    id = models.AutoField(primary_key=True)  # Auto-incrementing ID field
+    login_info = models.ForeignKey(LoginInfo, on_delete=models.CASCADE, related_name='user_preferences')
+    area = models.CharField(max_length=200)
+    min_price = models.IntegerField()
+    max_price = models.IntegerField()
+    move_in_date = models.DateTimeField()
+    # TODO: Thing what to do with features
+    number_of_roomates = models.IntegerField()
+
+    def clean(self):
+        # Ensure max_price >= min_price
+        if self.min_price < 0:
+            raise ValidationError("Minimum price must be greater than or equal to 0.")
+        if self.max_price < 0:
+            raise ValidationError("Maximum price must be greater than or equal to 0.")
+        if self.min_price > self.max_price:
+            raise ValidationError("Maximum price must be greater than or equal to minimum price.")
+
+        # Ensure move_in_date is a future date
+        if self.move_in_date <= now():
+            raise ValidationError("Move-in date must be in the future.")
+
+        # Ensure number_of_roomates >= 0
+        if self.number_of_roomates < 0:
+            raise ValidationError("Number of roommates must be greater than or equal to 0.")
+
+    def save(self, *args, **kwargs):
+        # Call full_clean to validate before saving
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 # Signal to delete LoginInfo when UserDetails is deleted
