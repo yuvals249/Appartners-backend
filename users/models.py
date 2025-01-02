@@ -44,7 +44,7 @@ class UserPreferences(models.Model):
     area = models.CharField(max_length=200)
     min_price = models.IntegerField()
     max_price = models.IntegerField()
-    move_in_date = models.DateTimeField()
+    move_in_date = models.DateField()
     # TODO: Thing what to do with features
     number_of_roomates = models.IntegerField()
 
@@ -58,7 +58,7 @@ class UserPreferences(models.Model):
             raise ValidationError("Maximum price must be greater than or equal to minimum price.")
 
         # Ensure move_in_date is a future date
-        if self.move_in_date <= now():
+        if self.move_in_date <= now().date():
             raise ValidationError("Move-in date must be in the future.")
 
         # Ensure number_of_roomates >= 0

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import LoginInfo, UserDetails
+from .models import LoginInfo, UserDetails, UserPreferences
 from django.contrib.auth.hashers import make_password
 
 # Register your models here.
@@ -35,8 +35,16 @@ class UserDetailsAdmin(admin.ModelAdmin):
     def full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
 
-#TODO: add here a class for UserPreferences admin
+
+class UserPreferencesAdmin(admin.ModelAdmin):
+    # Search fields in the admin table
+    search_fields = ('area', 'min_price', 'max_price')
+
+    # Display email and created_at in the admin list view
+    list_display = ('area', 'min_price', 'max_price', 'move_in_date', 'number_of_roomates')
+
 
 # Register the models and admin classes
 admin.site.register(LoginInfo, LoginInfoAdmin)
 admin.site.register(UserDetails, UserDetailsAdmin)
+admin.site.register(UserPreferences, UserPreferencesAdmin)
