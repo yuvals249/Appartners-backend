@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -77,10 +78,17 @@ WSGI_APPLICATION = 'appartners.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
+# Load environment variables from a .env file
+load_dotenv()
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'appartners'),  # Database name
+        'USER': os.getenv('DB_USER', 'admin'),  # Database user
+        'PASSWORD': os.getenv('DB_PASSWORD', '1111'),  # Database password
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # Database host, default to localhost
+        'PORT': os.getenv('DB_PORT', '5433'),  # Database port, default to 5433
     }
 }
 

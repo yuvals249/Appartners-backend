@@ -9,7 +9,6 @@ from . import models
 # Admin for LoginInfo
 class LoginInfoAdmin(admin.ModelAdmin):
     # Exclude password from admin display
-    readonly_fields = ('email', 'password',)
 
     # Search fields in the admin table
     search_fields = ('email',)
