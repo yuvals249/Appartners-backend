@@ -46,7 +46,7 @@ class UserPreferences(models.Model):
     max_price = models.IntegerField()
     move_in_date = models.DateField()
     # TODO: Thing what to do with features
-    number_of_roomates = models.IntegerField()
+    number_of_roommates = models.IntegerField()
 
     def clean(self):
         # Ensure max_price >= min_price
@@ -61,8 +61,8 @@ class UserPreferences(models.Model):
         if self.move_in_date <= now().date():
             raise ValidationError("Move-in date must be in the future.")
 
-        # Ensure number_of_roomates >= 0
-        if self.number_of_roomates < 0:
+        # Ensure number_of_roommates >= 0
+        if self.number_of_roommates < 0:
             raise ValidationError("Number of roommates must be greater than or equal to 0.")
 
     def save(self, *args, **kwargs):

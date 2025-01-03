@@ -41,7 +41,7 @@ class UserPreferencesAdmin(admin.ModelAdmin):
     search_fields = ('area', 'min_price', 'max_price')
 
     # Display email and created_at in the admin list view
-    list_display = ('area', 'min_price', 'max_price', 'move_in_date', 'number_of_roomates')
+    list_display = ('area', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
 
 
 # Register the models and admin classes

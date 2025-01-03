@@ -16,6 +16,12 @@ Including another URLconf
 from django.urls import path, re_path
 from django.contrib import admin
 
+import users.api_views
+
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls),
+
+    path('api/v1/users/loginInfo/', users.api_views.LoginInfoList.as_view()),
+    path('api/v1/users/userDetails/', users.api_views.UserDetailsList.as_view()),
+    path('api/v1/users/userPreferences/', users.api_views.UserPreferencesList.as_view()),
 ]
