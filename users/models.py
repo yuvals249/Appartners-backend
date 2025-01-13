@@ -6,6 +6,7 @@ import uuid
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils.timezone import now
+from apartments.models import Feature
 
 
 # Create your models here.
@@ -27,21 +28,24 @@ class LoginInfo(models.Model):
 
 class UserDetails(models.Model):
     id = models.AutoField(primary_key=True)  # Auto-incrementing ID field
-    login_info = models.ForeignKey(LoginInfo, on_delete=models.CASCADE, related_name='user_details')
-    first_name = models.CharField(max_length=200)
-    last_name = models.CharField(max_length=200)
-    gender = models.CharField(max_length=10, choices=[('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')])
-    occupation = models.CharField(max_length=200)
-    birth_date = models.DateField()
-    address = models.CharField(max_length=200)
-    phone_number = models.CharField(max_length=15, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    login_info = models.ForeignKey(LoginInfo, on_delete=models.CASCADE, related_name='user_details')
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    gender = models.CharField(max_length=10, choices=[('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')])
+    occupation = models.CharField(max_length=30)
+    birth_date = models.DateField()
+    preferred_city = models.CharField(max_length=30)
+    phone_number = models.CharField(max_length=15, unique=True)
+    about_me = models.TextField(null=True)
+    models.ImageField(upload_to='user_photo/')
+
 
 class UserPreferences(models.Model):
     id = models.AutoField(primary_key=True)  # Auto-incrementing ID field
     login_info = models.ForeignKey(LoginInfo, on_delete=models.CASCADE, related_name='user_preferences')
-    area = models.CharField(max_length=200)
+    city = models.CharField(max_length=40)
     min_price = models.IntegerField()
     max_price = models.IntegerField()
     move_in_date = models.DateField()
@@ -79,3 +83,9 @@ def delete_login_info(sender, instance, **kwargs):
     """
     if instance.login_info:
         instance.login_info.delete()
+
+
+class UserPreferencesFeatures(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(UserPreferences, on_delete=models.CASCADE, related_name="user_preference_features")
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name="feature_users")

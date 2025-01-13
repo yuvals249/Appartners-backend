@@ -37,10 +37,10 @@ class UserDetailsAdmin(admin.ModelAdmin):
 
 class UserPreferencesAdmin(admin.ModelAdmin):
     # Search fields in the admin table
-    search_fields = ('area', 'min_price', 'max_price')
+    search_fields = ('city', 'min_price', 'max_price')
 
     # Display email and created_at in the admin list view
-    list_display = ('area', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
+    list_display = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
 
 
 # Register the models and admin classes
