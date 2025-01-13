@@ -39,7 +39,7 @@ class UserDetails(models.Model):
     preferred_city = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, unique=True)
     about_me = models.TextField(null=True)
-    models.ImageField(upload_to='user_photo/')
+    photo = models.ImageField(upload_to='user_photo/', null=True)
 
 
 class UserPreferences(models.Model):
