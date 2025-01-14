@@ -16,7 +16,7 @@ class LoginInfoSerializer(serializers.ModelSerializer):
 class UserDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDetails
-        fields = ('first_name', 'last_name', 'gender', 'occupation', 'birth_date', 'address', 'phone_number')
+        fields = ('first_name', 'last_name', 'gender', 'occupation', 'birth_date', 'phone_number', 'preferred_city', 'about_me', 'photo')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -27,7 +27,7 @@ class UserDetailsSerializer(serializers.ModelSerializer):
 class UserPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPreferences
-        fields = ('area', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
+        fields = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
