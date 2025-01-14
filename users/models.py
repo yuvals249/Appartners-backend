@@ -39,7 +39,7 @@ class UserDetails(models.Model):
     preferred_city = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, unique=True)
     about_me = models.TextField(null=True)
-    photo = models.ImageField(upload_to='user_photo/', null=True)
+    photo = models.ImageField(upload_to='users/photos/', null=True)
 
 
 class UserPreferences(models.Model):
@@ -49,7 +49,6 @@ class UserPreferences(models.Model):
     min_price = models.IntegerField()
     max_price = models.IntegerField()
     move_in_date = models.DateField()
-    # TODO: Thing what to do with features
     number_of_roommates = models.IntegerField()
 
     def clean(self):

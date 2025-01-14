@@ -30,7 +30,7 @@ class ApartmentPhoto(models.Model):
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name="photos")
-    photo = models.ImageField(upload_to='apartment_photos/')
+    photo = models.ImageField(upload_to='apartments/photos')
 
     def __str__(self):
         return f"Photo for Apartment {self.apartment.id}"

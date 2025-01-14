@@ -2,11 +2,8 @@ from django.contrib import admin
 from .models import LoginInfo, UserDetails, UserPreferences
 from django.contrib.auth.hashers import make_password
 
-# Register your models here.
-from . import models
-
-
 # Admin for LoginInfo
+@admin.register(LoginInfo)
 class LoginInfoAdmin(admin.ModelAdmin):
     # Exclude password from admin display
 
@@ -24,6 +21,7 @@ class LoginInfoAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+@admin.register(UserDetails)
 class UserDetailsAdmin(admin.ModelAdmin):
     # Search fields in the admin table
     search_fields = ('first_name', 'last_name', 'phone_number')
@@ -35,15 +33,10 @@ class UserDetailsAdmin(admin.ModelAdmin):
         return f"{obj.first_name} {obj.last_name}"
 
 
+@admin.register(UserPreferences)
 class UserPreferencesAdmin(admin.ModelAdmin):
     # Search fields in the admin table
     search_fields = ('city', 'min_price', 'max_price')
 
     # Display email and created_at in the admin list view
     list_display = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
-
-
-# Register the models and admin classes
-admin.site.register(LoginInfo, LoginInfoAdmin)
-admin.site.register(UserDetails, UserDetailsAdmin)
-admin.site.register(UserPreferences, UserPreferencesAdmin)

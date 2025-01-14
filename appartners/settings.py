@@ -89,7 +89,7 @@ DATABASES = {
         'USER': os.getenv('DB_USER', 'admin'),  # Database user
         'PASSWORD': os.getenv('DB_PASSWORD', '1111'),  # Database password
         'HOST': os.getenv('DB_HOST', 'localhost'),  # Database host, default to localhost
-        'PORT': os.getenv('DB_PORT', '5433'),  # Database port, default to 5433
+        'PORT': os.getenv('DB_PORT', '5432'),  # Database port, default to 5432
     }
 }
 
