@@ -1,5 +1,7 @@
 import uuid
 from datetime import date
+from os import abort
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -16,7 +18,7 @@ class Apartment(models.Model):
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="apartments")
     street = models.CharField(max_length=50)
     type = models.CharField(max_length=50)
-    house_number = models.CharField(max_length=10)
+    house_number = models.IntegerField()
     floor = models.IntegerField()
     number_of_rooms = models.IntegerField()
     number_of_available_rooms = models.IntegerField()
@@ -24,29 +26,43 @@ class Apartment(models.Model):
     available_entry_date = models.DateField()
     about = models.TextField(null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        """
+        Enforce model validation before saving.
+        """
+        self.full_clean()  # This calls the clean method and raises ValidationError if validation fails
+        super().save(*args, **kwargs)
+
     def clean(self):
         """
         Custom validations for cross-field constraints and field-level rules.
         """
-        # Cross-field validation: number_of_available_rooms <= number_of_rooms
+        if not self.type.isalpha():
+            raise ValidationError({'type': 'Must contain only letters'})
+
+        if self.house_number <= 0:
+            raise ValidationError({'house_number': 'Must be a positive integer'})
+
+        if self.floor <= 0 or self.floor > 100:
+            raise ValidationError({'floor': 'Must be a valid integer'})
+
+        if self.number_of_rooms <= 0 or self.number_of_rooms > 10:
+            raise ValidationError({'number_of_rooms': 'Must be a valid integer'})
+
+        if self.number_of_available_rooms <= 0:
+            raise ValidationError({'number_of_available_rooms': 'Must be a positive integer'})
+
         if self.number_of_available_rooms > self.number_of_rooms:
-            raise ValidationError(
-                {'number_of_available_rooms': "Cannot exceed the total number of rooms."}
-            )
+            raise ValidationError({'number_of_available_rooms': "Cannot exceed the total number of rooms"})
 
-        # Validation for available_entry_date
+        if self.total_price <= 0:
+            raise ValidationError({'total_price': 'Must be a positive decimal'})
+
+        if self.about and len(self.about) > 1000:
+            raise ValidationError({'about': 'Must not exceed 1000 characters'})
+
         if self.available_entry_date <= date.today():
-            raise ValidationError(
-                {'available_entry_date': "Available entry date must be in the future."}
-            )
-
-        # Ensure street has a reasonable length (this is already enforced by max_length)
-        if len(self.street) > 50:
-            raise ValidationError({'street': "Street name cannot exceed 50 characters."})
-
-        # Ensure house number meets pattern rules
-        if len(self.house_number) > 10:
-            raise ValidationError({'house_number': "House number cannot exceed 10 characters."})
+            raise ValidationError({'available_entry_date': "Must be in the future"})
 
     def __str__(self):
         return f'{self.city} {self.street} {self.house_number}'
