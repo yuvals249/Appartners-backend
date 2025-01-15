@@ -8,3 +8,6 @@ apartments/__pycache__/
 apartments/migrations/__pycache__/
 users/photos/
 apartments/photos/
+apartments/models/__pycache__/
+apartments/serializers/__pycache__/
+apartments/.DS_Store
