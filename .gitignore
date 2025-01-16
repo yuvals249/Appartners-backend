@@ -13,3 +13,5 @@ apartments/serializers/__pycache__/
 apartments/.DS_Store
 users/models/__pycache__/
 users/serializers/__pycache__/
+users/.DS_Store
+.DS_Store

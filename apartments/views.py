@@ -1,14 +1,18 @@
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
+from jwt import ExpiredSignatureError, InvalidTokenError
+
 from rest_framework.exceptions import APIException
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from apartments.models import Apartment
 from apartments.serializers import ApartmentPostPayloadSerializer
 from apartments.serializers.apartment import ApartmentSerializer
+from appartners.utils import decode_jwt
 from appartners.validators import UUIDValidator
+
+from apartments.models import Apartment, ApartmentUserLike
 
 
 class ApartmentCreateView(APIView):
@@ -60,24 +64,78 @@ class ApartmentView(APIView):
     """
 
     def get(self, request, apartment_id):
-        # Validate UUID format
-        print(f'type: {type(apartment_id)}')
         try:
             validator = UUIDValidator()
             if not validator(apartment_id):
                 return Response(
-                    {"error": "Invalid apartment ID format."},
+                    {"error": "Invalid UUID format"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             apartment = Apartment.objects.get(id=apartment_id)
         except Apartment.DoesNotExist:
-            return Response({"error": "Apartment not found."}, status=status.HTTP_404_NOT_FOUND)
-        except DatabaseError:
             return Response(
-                {"error": "A database error occurred. Please try again later"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Apartment not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        # Serialize the apartment data
         serializer = ApartmentSerializer(apartment)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ApartmentLikeView(APIView):
+    """
+    Endpoint to like or unlike an apartment for the authenticated user using JWT in UserAuth header.
+    """
+
+    def post(self, request):
+        # Extract the token from the UserAuth header
+        token = request.headers.get('UserAuth')
+        print(f'token: {token}')
+        if not token:
+            return Response({"error": "UserAuth header missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            # Decode the JWT
+            user_id, email = decode_jwt(token)
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
+        except InvalidTokenError:
+            return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Validate the user ID from the token
+        if not user_id:
+            return Response({"error": "Invalid token payload"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Get the apartment ID and like field from the request data
+        apartment_id = request.data.get('apartment_id')
+        like = request.data.get('like')  # Boolean value
+
+        if not apartment_id or like is None:
+            return Response({"error": "Apartment ID and like field are required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            apartment = Apartment.objects.get(id=apartment_id)
+            # Check if a record for the user and apartment already exists
+            obj, created = ApartmentUserLike.objects.update_or_create(
+                user_id=user_id,
+                apartment=apartment,
+                defaults={'like': like}
+            )
+
+            if created:
+                message = "Apartment like created successfully."
+            else:
+                message = "Apartment like updated successfully."
+
+            return Response({"message": message}, status=status.HTTP_200_OK)
+
+        except Apartment.DoesNotExist:
+            return Response({"error": "Apartment not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+        except ValidationError as e:
+            # Handle validation errors
+            return Response(
+                {"error": e.message if isinstance(e.message, str) else e.messages},
+                status=status.HTTP_400_BAD_REQUEST
+            )

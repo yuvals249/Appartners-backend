@@ -1,13 +1,12 @@
+from django.contrib.auth.models import User
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 
-from .login_info import LoginInfo
-
 
 class UserPreferences(models.Model):
     id = models.AutoField(primary_key=True)  # Auto-incrementing ID field
-    login_info = models.ForeignKey(LoginInfo, on_delete=models.CASCADE, related_name='user_preferences')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_preferences')
     city = models.CharField(max_length=40)
     min_price = models.IntegerField()
     max_price = models.IntegerField()
