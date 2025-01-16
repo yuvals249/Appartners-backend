@@ -1,16 +1,23 @@
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from rest_framework.response import Response
 
-from users.serializers import LoginInfoSerializer, UserDetailsSerializer, UserPreferencesSerializer
-from users.models import LoginInfo, UserDetails, UserPreferences
+
+from users.serializers.login_info import LoginInfoSerializer
+from users.serializers.user_details import UserDetailsSerializer
+from users.serializers.user_preferences import UserPreferencesSerializer
+
+from users.models.login_info import LoginInfo
+from users.models.user_details import UserDetails
+from users.models.user_preferences import UserPreferences
 
 
 class LoginInfoList(ListAPIView):
-    queryset = LoginInfo.objects.all()
-    serializer_class = LoginInfoSerializer
-    filter_backends = (SearchFilter,)
-    search_fields = ('email',)
+    def get(self, request, *args, **kwargs):
+        queryset = LoginInfo.objects.all()
+        serializer_class = LoginInfoSerializer(queryset, many=True)
+        return Response(serializer_class.data)
 
 
 class UserDetailsList(ListAPIView):

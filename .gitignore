@@ -11,3 +11,5 @@ apartments/photos/
 apartments/models/__pycache__/
 apartments/serializers/__pycache__/
 apartments/.DS_Store
+users/models/__pycache__/
+users/serializers/__pycache__/

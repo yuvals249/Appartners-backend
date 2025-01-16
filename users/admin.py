@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import LoginInfo, UserDetails, UserPreferences
+from .models.login_info import LoginInfo
+from .models.questionnaire import Questionnaire
+from .models.user_details import UserDetails
+from .models.user_preferences import UserPreferences
+from .models.user_preferences_features import UserPreferencesFeatures
+
 from django.contrib.auth.hashers import make_password
 
 # Admin for LoginInfo
