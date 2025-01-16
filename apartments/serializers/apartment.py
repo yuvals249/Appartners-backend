@@ -23,20 +23,11 @@ class ApartmentSerializer(serializers.ModelSerializer):
         ]
 
     def get_feature_details(self, obj):
-        # Get features through the intermediate model
+        """
+        Get features through the intermediate model
+        """
         features = [af.feature for af in obj.apartment_features.all()]
         return FeatureSerializer(features, many=True).data
-
-    def validate(self, data):
-        """
-        Cross-field validation.
-        """
-        # Ensure available rooms do not exceed total rooms
-        if data['number_of_available_rooms'] > data['number_of_rooms']:
-            raise serializers.ValidationError(
-                {"number_of_available_rooms": "Cannot exceed the total number of rooms."}
-            )
-        return data
 
     def create(self, validated_data):
         features = validated_data.pop('features', [])

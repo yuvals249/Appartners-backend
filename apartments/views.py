@@ -1,9 +1,14 @@
 from django.core.exceptions import ValidationError
+from django.db import DatabaseError
+from rest_framework.exceptions import APIException
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from apartments.models import Apartment
+from apartments.serializers import ApartmentPostPayloadSerializer
 from apartments.serializers.apartment import ApartmentSerializer
+from appartners.validators import UUIDValidator
 
 
 class ApartmentCreateView(APIView):
@@ -19,83 +24,60 @@ class ApartmentCreateView(APIView):
             except ValidationError as e:
                 # Handle model-level validation errors
                 return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            except DatabaseError:
+                # Handle database errors
+                return Response(
+                    {"error": "An error occurred while saving data"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#
-# # Retrieve, Update, and Delete a Single Apartment
-# class ApartmentDetailView(APIView):
-#     """
-#     API View to retrieve, update, or delete a specific apartment.
-#     """
-#
-#     def get(self, request, pk):
-#         apartment = get_object_or_404(Apartment, pk=pk)
-#         serializer = ApartmentSerializer(apartment)
-#         return Response(serializer.data)
-#
-#     def put(self, request, pk):
-#         apartment = get_object_or_404(Apartment, pk=pk)
-#         serializer = ApartmentSerializer(apartment, data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#
-#     def delete(self, request, pk):
-#         apartment = get_object_or_404(Apartment, pk=pk)
-#         apartment.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
-#
-#
-# # List and Create Features
-# class FeatureListCreateView(APIView):
-#     """
-#     API View to list all features or create a new feature.
-#     """
-#
-#     def get(self, request):
-#         features = Feature.objects.all()
-#         serializer = FeatureSerializer(features, many=True)
-#         return Response(serializer.data)
-#
-#     def post(self, request):
-#         serializer = FeatureSerializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#
-#
-# # Add Features to an Apartment
-# class AddFeatureToApartmentView(APIView):
-#     """
-#     API View to add a feature to an apartment.
-#     """
-#
-#     def post(self, request):
-#         apartment_id = request.data.get('apartment_id')
-#         feature_id = request.data.get('feature_id')
-#
-#         if not apartment_id or not feature_id:
-#             return Response({"error": "apartment_id and feature_id are required"}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         # Validate the Apartment and Feature exist
-#         apartment = get_object_or_404(Apartment, pk=apartment_id)
-#         feature = get_object_or_404(Feature, pk=feature_id)
-#
-#         # Create the relationship
-#         ApartmentFeature.objects.create(apartment=apartment, feature=feature)
-#         return Response({"message": "Feature added to apartment"}, status=status.HTTP_201_CREATED)
-#
-#
-# # List Apartment Photos
-# class ApartmentPhotoListView(APIView):
-#     """
-#     API View to list photos of an apartment.
-#     """
-#
-#     def get(self, request, apartment_id):
-#         photos = ApartmentPhoto.objects.filter(apartment__id=apartment_id)
-#         serializer = ApartmentPhotoSerializer(photos, many=True)
-#         return Response(serializer.data)
+
+class ApartmentPostPayloadView(APIView):
+    """
+    Get dropdown data for apartment post.
+    """
+
+    def get(self, request, *args, **kwargs):
+        try:
+            # Fetch payload using the serializer
+            payload = ApartmentPostPayloadSerializer({}).data
+            return Response(payload)
+        except DatabaseError:
+            # Handle database errors
+            return Response(
+                {"error": "An error occurred while fetching dropdown data"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except APIException as e:
+            # Handle serialization-related errors
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ApartmentView(APIView):
+    """
+    Retrieve an apartment by ID.
+    """
+
+    def get(self, request, apartment_id):
+        # Validate UUID format
+        print(f'type: {type(apartment_id)}')
+        try:
+            validator = UUIDValidator()
+            if not validator(apartment_id):
+                return Response(
+                    {"error": "Invalid apartment ID format."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            apartment = Apartment.objects.get(id=apartment_id)
+        except Apartment.DoesNotExist:
+            return Response({"error": "Apartment not found."}, status=status.HTTP_404_NOT_FOUND)
+        except DatabaseError:
+            return Response(
+                {"error": "A database error occurred. Please try again later"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Serialize the apartment data
+        serializer = ApartmentSerializer(apartment)
+        return Response(serializer.data, status=status.HTTP_200_OK)

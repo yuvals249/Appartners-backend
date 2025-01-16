@@ -1,6 +1,5 @@
 import uuid
 from datetime import date
-from os import abort
 
 from django.core.exceptions import ValidationError
 from django.db import models

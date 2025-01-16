@@ -1,0 +1,581 @@
+openapi: 3.0.0
+info:
+  title: Appartners API
+  description: "API documentation for the Appartners application, which helps users find apartments."
+  version: 1.0.0
+servers:
+- url: https://virtserver.swaggerhub.com/TOMSH610/Appartners/1.0.0
+  description: SwaggerHub API Auto Mocking
+- url: https://api.appartners.com
+  description: Production server
+- url: https://dev.api.appartners.com
+  description: Development server
+security:
+- AppVerification: []
+tags:
+- name: Authenticate
+  description: Endpoints related to user registration and validation
+- name: Users
+  description: "Endpoints related to user actions like questionnaires, preferences, and profile management."
+- name: Apartments
+  description: "Endpoints related to appartments actions like posting a new one, getting available one and so on."
+paths:
+  /authenticate/validate-unique:
+    post:
+      tags:
+      - Authenticate
+      summary: Validate unique user details
+      description: Validates the user phone number and email to check validity and uniqueness.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateUniqueRequest'
+        required: true
+      responses:
+        "200":
+          description: Valid details
+        "400":
+          description: Invalid or non-unique details
+  /authenticate/payload:
+    get:
+      tags:
+      - Authenticate
+      summary: Get list of cities
+      description: Returns a payload with a list of all cities.
+      responses:
+        "200":
+          description: A list of cities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitiesResponse'
+  /authenticate/new:
+    post:
+      tags:
+      - Authenticate
+      summary: Register a new user
+      description: Registers a user with all the required details and logs them in if successful.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+        required: true
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        "400":
+          description: Error in registration
+  /users/questionnaire/payload:
+    get:
+      tags:
+      - Users
+      summary: Get questionnaire questions
+      description: Returns all questions for a questionnaire.
+      responses:
+        "200":
+          description: List of questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionnaireResponse'
+      security:
+      - UserAuth: []
+  /users/questionnaire/{id}:
+    get:
+      tags:
+      - Users
+      summary: Get questionnaire answers for a user
+      description: Returns all questionnaire answers for a user by ID.
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the questionnaire
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: List of questionnaire answers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionnaireAnswerResponse'
+      security:
+      - UserAuth: []
+    put:
+      tags:
+      - Users
+      summary: Update user questionnaire by ID
+      description: Updates the user questionnaire by a specific ID.
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the questionnaire
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionnaireRequest'
+        required: true
+      responses:
+        "200":
+          description: Questionnaire updated successfully
+        "400":
+          description: Error updating questionnaire
+      security:
+      - UserAuth: []
+  /users/preferences/payload:
+    get:
+      tags:
+      - Users
+      summary: Get user preferences payload
+      description: Returns all relevant categorical data for user preferences.
+      responses:
+        "200":
+          description: User preferences payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencesPayloadResponse'
+      security:
+      - UserAuth: []
+  /users/preferences:
+    post:
+      tags:
+      - Users
+      summary: Update user preferences
+      description: Updates user preferences for filtering apartments.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesRequest'
+        required: true
+      responses:
+        "200":
+          description: Preferences updated successfully
+        "400":
+          description: Error updating preferences
+      security:
+      - UserAuth: []
+  /users/preferences/{id}:
+    get:
+      tags:
+      - Users
+      summary: Get user preferences by ID
+      description: Returns user preferences if they exist.
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the user preferences
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: User preferences object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencesRequest'
+      security:
+      - UserAuth: []
+    put:
+      tags:
+      - Users
+      summary: Update user preferences by ID
+      description: Updates user preferences by a specific ID.
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the user preferences
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesRequest'
+        required: true
+      responses:
+        "200":
+          description: Preferences updated successfully
+        "400":
+          description: Error updating preferences
+  /apartments/post-payload:
+    get:
+      tags:
+      - Apartments
+      summary: Get dropdown data for apartment post
+      description: Returns dropdown data needed for posting an apartment.
+      responses:
+        "200":
+          description: Dropdown data for apartments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentPayloadResponse'
+      security:
+      - UserAuth: []
+  /apartments/new:
+    post:
+      tags:
+      - Apartments
+      summary: Post a new apartment
+      description: Posts a new apartment with all necessary details.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApartmentRequest'
+        required: true
+      responses:
+        "200":
+          description: Apartment posted successfully
+        "400":
+          description: Error posting apartment
+      security:
+      - UserAuth: []
+  /apartments/{id}:
+    get:
+      tags:
+      - Apartments
+      summary: Get user-posted apartment by ID
+      description: Returns the apartment details posted by the user for a given ID.
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the apartment
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Apartment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentResponse'
+        "400":
+          description: Apartment not found
+      security:
+      - UserAuth: []
+  /apartments/limit:
+    get:
+      tags:
+      - Apartments
+      summary: Get relevant apartments based on preferences
+      description: "Returns a list of apartments relevant to the user’s preferences, up to a specified limit."
+      parameters:
+      - name: limit
+        in: query
+        description: Maximum number of apartments to retrieve
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Relevant apartments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentResponse'
+      security:
+      - UserAuth: []
+  /apartments/preference:
+    post:
+      tags:
+      - Apartments
+      summary: Like or dislike an apartment
+      description: Allows the user to like or dislike an apartment.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApartmentLikeRequest'
+        required: true
+      responses:
+        "200":
+          description: Operation successful
+        "400":
+          description: Error in liking/disliking the apartment
+      security:
+      - UserAuth: []
+components:
+  schemas:
+    ValidateUniqueRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          description: User's email address.
+          format: email
+        phone:
+          type: string
+          description: User's phone number.
+      description: Schema for validating user uniqueness.
+    CitiesResponse:
+      type: object
+      properties:
+        cities:
+          type: array
+          items:
+            type: string
+      description: Schema for the response containing a list of cities.
+    UserRegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        preferred_city:
+          type: string
+        preferred_area:
+          type: string
+        gender:
+          type: string
+        photo:
+          type: string
+          format: binary
+        occupation:
+          type: string
+        birthdate:
+          type: string
+          format: date
+        about_me:
+          type: string
+        password:
+          type: string
+          format: password
+      description: Schema for user registration request.
+    UserRegistrationResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+      description: Schema for user registration response.
+    QuestionnaireResponse:
+      type: array
+      description: Schema for a list of questionnaire questions.
+      items:
+        $ref: '#/components/schemas/QuestionnaireResponse_inner'
+    QuestionnaireAnswerResponse:
+      type: array
+      description: Schema for a list of questionnaire answers.
+      items:
+        $ref: '#/components/schemas/QuestionnaireAnswerResponse_inner'
+    QuestionnaireRequest:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionnaireRequest_questions'
+      description: Schema for updating a questionnaire.
+    UserPreferencesPayloadResponse:
+      type: object
+      properties:
+        cities:
+          type: array
+          items:
+            type: string
+        areas:
+          type: array
+          items:
+            type: string
+        apartment_features:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPreferencesPayloadResponse_apartment_features'
+      description: Schema for user preferences payload.
+    UserPreferencesRequest:
+      type: object
+      properties:
+        city:
+          type: string
+        preferred_move_in_date:
+          type: string
+          format: date
+        features:
+          type: array
+          items:
+            type: string
+        number_of_roommates:
+          type: integer
+        price_range:
+          $ref: '#/components/schemas/UserPreferencesRequest_price_range'
+      description: Schema for updating user preferences.
+    ApartmentPayloadResponse:
+      type: object
+      properties:
+        features:
+          type: array
+          items:
+            type: string
+#        types:
+#          type: array
+#          items:
+#            type: string
+        cities:
+          type: array
+          items:
+            type: string
+      description: Schema for apartment dropdown payload.
+    ApartmentRequest:
+      type: object
+      properties:
+        city:
+          type: string
+        street:
+          type: string
+        type:
+          type: string
+        house_number:
+          type: string
+        floor:
+          type: integer
+        number_of_rooms:
+          type: integer
+        available_rooms:
+          type: integer
+        total_price:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        available_entry_date:
+          type: string
+          format: date
+        about:
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+      description: Schema for posting an apartment.
+    ApartmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        city:
+          type: string
+        street:
+          type: string
+        type:
+          type: string
+        house_number:
+          type: string
+        floor:
+          type: integer
+        number_of_rooms:
+          type: integer
+        available_rooms:
+          type: integer
+        total_price:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        available_entry_date:
+          type: string
+          format: date
+        about:
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+      description: Schema for returning apartment details.
+    ApartmentLikeRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        like:
+          type: integer
+          enum:
+          - 0
+          - 1
+      description: Schema for liking or disliking an apartment.
+    QuestionnaireResponse_inner:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+    QuestionnaireAnswerResponse_inner:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        user_preference:
+          type: string
+    QuestionnaireRequest_questions:
+      type: object
+      properties:
+        id:
+          type: integer
+        answer:
+          type: string
+    UserPreferencesPayloadResponse_apartment_features:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    UserPreferencesRequest_price_range:
+      type: object
+      properties:
+        min:
+          type: number
+        max:
+          type: number
+  securitySchemes:
+    UserAuth:
+      type: http
+      scheme: bearer
+    AppVerification:
+      type: apiKey
+      name: X-App-Verification
+      in: header
