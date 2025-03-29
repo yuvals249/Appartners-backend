@@ -11,22 +11,25 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
-from dotenv import load_dotenv
+
+import environ
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '15@8nkhn1k%5bz-bl!mmv$m%ncqhv6rv2y2kzr3hs22v_cd6rs'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', '.onrender.com']
 
 
 # Application definition
@@ -79,17 +82,14 @@ WSGI_APPLICATION = 'appartners.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
-# Load environment variables from a .env file
-load_dotenv()
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'MYDB'),  # Database name
-        'USER': os.getenv('DB_USER', 'admin'),  # Database user
-        'PASSWORD': os.getenv('DB_PASSWORD', 'MYPASSWORD'),  # Database password
-        'HOST': os.getenv('DB_HOST', 'localhost'),  # Database host, default to localhost
-        'PORT': os.getenv('DB_PORT', '5430'),  # Database port, default to 5432
+        'NAME': env('DB_NAME', default='MY_DB'),  # Database name
+        'USER': env('DB_USER', default='MY_USER'),  # Database user
+        'PASSWORD': env('DB_PASSWORD', default='MY_PASSWORD'),  # Database password
+        'HOST': env('DB_HOST', default='localhost'),  # Database host, default to localhost
+        'PORT': env('DB_PORT', default='5432'),  # Database port, default to 5432
     }
 }
 
