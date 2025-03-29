@@ -1,6 +1,5 @@
 from django.contrib import admin
-from .models.user_details import UserDetails
-from .models.user_preferences import UserPreferences
+from users.models import UserDetails, UserPreferences
 
 
 @admin.register(UserDetails)
