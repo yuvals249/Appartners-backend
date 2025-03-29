@@ -8,27 +8,46 @@ from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 
 from appartners.utils import generate_jwt
-from users.serializers.user_details import UserDetailsSerializer
-from users.serializers.user_preferences import UserPreferencesSerializer
 
-from users.models.user_details import UserDetails
-from users.models.user_preferences import UserPreferences
+from .serializers import UserDetailsSerializer, UserPreferencesGetSerializer
+
+from .models import UserPreferences, UserDetails
+
 from rest_framework.views import APIView
+from appartners.validators import UUIDValidator
+from django.db import DatabaseError
 
 
-class UserDetailsList(ListAPIView):
-    queryset = UserDetails.objects.all()
-    serializer_class = UserDetailsSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter)
-    filterset_fields = ('id',)
-    search_fields = ('first_name', 'last_name', 'phone_number',)
+class UserDetailsList(APIView):
+    def get(self, request):
+        user_details = UserDetails.objects.all()
+
+        # Serialize the users data
+        serializer = UserDetailsSerializer(user_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class UserPreferencesList(ListAPIView):
-    queryset = UserPreferences.objects.all()
-    serializer_class = UserPreferencesSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter)
-    filterset_fields = ('id', 'area', 'max_price', 'move_in_date', 'number_of_roommates')
+
+class UserPreferencesView(APIView):
+    def get(self, request, user_preferences_id):
+        try:
+            # validator = UUIDValidator()
+            # if not validator(user_preferences_id):
+            #     return Response(
+            #         {"error": "Invalid user preferences_id ID format."},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
+            user_preferences = UserPreferences.objects.get(user_id=user_preferences_id)
+        except UserPreferences.DoesNotExist:
+            return Response({"error": "user preferences not found."}, status=status.HTTP_404_NOT_FOUND)
+        except DatabaseError:
+            return Response(
+                {"error": "A database error occurred. Please try again later"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        # Serialize the apartment data
+        serializer = UserPreferencesGetSerializer(user_preferences)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
