@@ -2,15 +2,16 @@ from django.urls import path
 
 from .views import (
     UserDetailsList,
-    UserPreferencesList,
-    LoginView
+    LoginView,
+    UserPreferencesView,
 )
 
 
 users_urlpatterns = [
     path('userDetails/', UserDetailsList.as_view(), name='user-details'),
-    path('userPreferences/', UserPreferencesList.as_view(), name='user-preferences'),
-    path('questionnaire/payload/', UserPreferencesList.as_view(), name='user-preferences'),
+    # path('userPreferences/', UserPreferencesView.as_view(), name='user-preferences'),
+    # path('questionnaire/payload/', UserPreferencesView.as_view(), name='user-preferences'),
+    path('preferences/<str:user_preferences_id>/', UserPreferencesView.as_view(), name='user-preferences-get'),
 ]
 
 auth_urlpatterns = [
