@@ -8,4 +8,4 @@ pip install -r requirements.txt
 
 python3 manage.py runserver
 
-docker run -it -e POSTGRES_PASSWORD=YOUR_PASSWORD -e POSTGRES_USER=YOUR_USER -e POSTGRES_DB=YOUR_DB -p DOCKER_PORT:YOUR_PORT postgres:latest
+docker run -it -e POSTGRES_PASSWORD=DB_PASSWORD -e POSTGRES_USER=DB_USER -e POSTGRES_DB=DB_NAME -p DOCKER_PORT:DB_PORT postgres:latest
