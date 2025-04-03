@@ -4,6 +4,8 @@ from .views import (
     UserDetailsList,
     LoginView,
     UserPreferencesView,
+    ValidateUniqueView,
+    CityPayloadView,
 )
 
 
@@ -17,5 +19,6 @@ users_urlpatterns = [
 auth_urlpatterns = [
     # path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
+    path('validate-unique/', ValidateUniqueView.as_view(), name='validate-unique'),
+    path('payload/', CityPayloadView.as_view(), name='city-payload'),
 ]
-

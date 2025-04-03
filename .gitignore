@@ -15,3 +15,5 @@ users/models/__pycache__/
 users/serializers/__pycache__/
 users/.DS_Store
 .DS_Store
+env/
+create_user_details.sql
