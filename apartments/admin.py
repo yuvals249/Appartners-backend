@@ -1,5 +1,6 @@
 from django.contrib import admin
 from apartments.models import Apartment, ApartmentPhoto, Feature, ApartmentFeature, City
+from apartments.models.apartment_user_like import ApartmentUserLike
 
 
 @admin.register(Apartment)
@@ -57,3 +58,15 @@ class CityAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'hebrew_name')
     list_filter = ('name', 'hebrew_name')
     search_fields = ('name', 'hebrew_name')
+
+
+@admin.register(ApartmentUserLike)
+class ApartmentUserLikeAdmin(admin.ModelAdmin):
+    """
+    Admin view for ApartmentUserLike model.
+    """
+    list_display = ('id', 'apartment', 'user', 'like', 'created_at', 'updated_at')
+    list_filter = ('like', 'created_at')
+    search_fields = ('apartment__street', 'user__email', 'user__username')
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'

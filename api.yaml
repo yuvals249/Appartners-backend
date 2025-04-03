@@ -20,7 +20,7 @@ tags:
 - name: Apartments
   description: "Endpoints related to appartments actions like posting a new one, getting available one and so on."
 paths:
-  /authenticate/validate-unique:
+  /authenticate/validate-unique/:
     post:
       tags:
       - Authenticate
@@ -37,7 +37,7 @@ paths:
           description: Valid details
         "400":
           description: Invalid or non-unique details
-  /authenticate/payload:
+  /authenticate/payload/:
     get:
       tags:
       - Authenticate
@@ -50,7 +50,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CitiesResponse'
-  /authenticate/new:
+  /authenticate/new/:
     post:
       tags:
       - Authenticate
@@ -71,7 +71,7 @@ paths:
                 $ref: '#/components/schemas/UserRegistrationResponse'
         "400":
           description: Error in registration
-  /users/questionnaire/payload:
+  /users/questionnaire/payload/:
     get:
       tags:
       - Users
@@ -86,7 +86,7 @@ paths:
                 $ref: '#/components/schemas/QuestionnaireResponse'
       security:
       - UserAuth: []
-  /users/questionnaire/{id}:
+  /users/questionnaire/{id}/:
     get:
       tags:
       - Users
@@ -137,7 +137,7 @@ paths:
           description: Error updating questionnaire
       security:
       - UserAuth: []
-  /users/preferences/payload:
+  /users/preferences/payload:/
     get:
       tags:
       - Users
@@ -152,7 +152,7 @@ paths:
                 $ref: '#/components/schemas/UserPreferencesPayloadResponse'
       security:
       - UserAuth: []
-  /users/preferences:
+  /users/preferences/:
     post:
       tags:
       - Users
@@ -171,7 +171,7 @@ paths:
           description: Error updating preferences
       security:
       - UserAuth: []
-  /users/preferences/{id}:
+  /users/preferences/{id}/:
     get:
       tags:
       - Users
@@ -220,7 +220,7 @@ paths:
           description: Preferences updated successfully
         "400":
           description: Error updating preferences
-  /apartments/post-payload:
+  /apartments/post-payload/:
     get:
       tags:
       - Apartments
@@ -235,7 +235,7 @@ paths:
                 $ref: '#/components/schemas/ApartmentPayloadResponse'
       security:
       - UserAuth: []
-  /apartments/new:
+  /apartments/new/:
     post:
       tags:
       - Apartments
@@ -254,7 +254,7 @@ paths:
           description: Error posting apartment
       security:
       - UserAuth: []
-  /apartments/{id}:
+  /apartments/{id}/:
     get:
       tags:
       - Apartments
@@ -280,7 +280,7 @@ paths:
           description: Apartment not found
       security:
       - UserAuth: []
-  /apartments/limit:
+  /apartments/limit/:
     get:
       tags:
       - Apartments
@@ -304,7 +304,7 @@ paths:
                 $ref: '#/components/schemas/ApartmentResponse'
       security:
       - UserAuth: []
-  /apartments/preference:
+  /apartments/preference/:
     post:
       tags:
       - Apartments
@@ -323,6 +323,230 @@ paths:
           description: Error in liking/disliking the apartment
       security:
       - UserAuth: []
+  /apartments/my/:
+    get:
+      tags:
+      - Apartments
+      summary: Get apartments created by the authenticated user
+      description: Returns all apartments that were created by the currently authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of user's apartments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApartmentResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+        "500":
+          description: Server error
+  /apartments/{apartment_id}/:
+    get:
+      tags:
+      - Apartments
+      summary: Get an apartment by ID
+      description: Returns a specific apartment by its ID
+      parameters:
+      - name: apartment_id
+        in: path
+        description: ID of the apartment to retrieve
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Apartment retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentResponse'
+        "404":
+          description: Apartment not found
+        "400":
+          description: Invalid UUID format
+    delete:
+      tags:
+      - Apartments
+      summary: Delete an apartment by ID
+      description: Deletes an apartment and all its related data (features, likes, etc.)
+      security:
+        - BearerAuth: []
+      parameters:
+      - name: apartment_id
+        in: path
+        description: ID of the apartment to delete
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Apartment deleted successfully
+        "401":
+          description: Unauthorized - invalid or missing token
+        "403":
+          description: Forbidden - user doesn't own the apartment
+        "404":
+          description: Apartment not found
+        "400":
+          description: Invalid UUID format
+        "500":
+          description: Server error
+  /apartments/liked/:
+    get:
+      tags:
+      - Apartments
+      summary: Get apartments liked by the authenticated user
+      description: Returns all apartments that the currently authenticated user has liked
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of user's liked apartments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApartmentResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+        "500":
+          description: Server error
+  /apartments/liker/:
+    get:
+      tags:
+      - Apartments
+      summary: Get users who liked the authenticated user's apartment
+      description: Returns all users who liked the apartment created by the currently authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of users who liked the apartment retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    email:
+                      type: string
+                      format: email
+                    first_name:
+                      type: string
+                    last_name:
+                      type: string
+                    phone_number:
+                      type: string
+        "401":
+          description: Unauthorized - invalid or missing token
+        "404":
+          description: Not found - user has no apartments
+        "500":
+          description: Server error
+  /questionnaire/:
+    get:
+      tags:
+      - Users
+      summary: Get questionnaire templates
+      description: Returns all questionnaire templates with their questions in order, or a specific template if ID is provided.
+      parameters:
+      - in: query
+        name: id
+        schema:
+          type: integer
+        required: false
+        description: Optional ID of a specific questionnaire template to retrieve
+      responses:
+        "200":
+          description: Questionnaire templates retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/QuestionnaireResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/QuestionnaireResponse'
+        "404":
+          description: No questionnaire templates found
+        "500":
+          description: Server error
+  /questionnaire/responses/:
+    post:
+      tags:
+      - Users
+      summary: Submit questionnaire responses
+      description: Submit user responses to questionnaire questions.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionnaireResponsesRequest'
+        required: true
+      responses:
+        "201":
+          description: Responses saved successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Unauthorized - invalid or missing token
+        "500":
+          description: Server error
+    get:
+      tags:
+      - Users
+      summary: Get user's questionnaire responses
+      description: Retrieve the user's responses to the questionnaire.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User responses retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponsesResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+        "404":
+          description: No responses found for this user
+        "500":
+          description: Server error
+    put:
+      tags:
+      - Users
+      summary: Update user's questionnaire responses
+      description: Update the user's responses to the questionnaire.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionnaireResponsesRequest'
+        required: true
+      responses:
+        "200":
+          description: Responses updated successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Unauthorized - invalid or missing token
+        "500":
+          description: Server error
 components:
   schemas:
     ValidateUniqueRequest:
@@ -389,15 +613,45 @@ components:
           type: string
       description: Schema for user registration response.
     QuestionnaireResponse:
-      type: array
-      description: Schema for a list of questionnaire questions.
-      items:
-        $ref: '#/components/schemas/QuestionnaireResponse_inner'
-    QuestionnaireAnswerResponse:
-      type: array
-      description: Schema for a list of questionnaire answers.
-      items:
-        $ref: '#/components/schemas/QuestionnaireAnswerResponse_inner'
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        order:
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Question'
+      description: Schema for questionnaire structure response.
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        question_type:
+          type: string
+          enum: [text, radio]
+        order:
+          type: integer
+        options:
+          type: object
+          nullable: true
+          properties:
+            min:
+              type: string
+            max:
+              type: string
+        placeholder:
+          type: string
+          nullable: true
+      description: Schema for a questionnaire question.
     QuestionnaireRequest:
       type: object
       properties:
@@ -446,10 +700,6 @@ components:
           type: array
           items:
             type: string
-#        types:
-#          type: array
-#          items:
-#            type: string
         cities:
           type: array
           items:
@@ -534,22 +784,52 @@ components:
           - 0
           - 1
       description: Schema for liking or disliking an apartment.
-    QuestionnaireResponse_inner:
+    QuestionnaireResponsesRequest:
       type: object
       properties:
-        id:
-          type: integer
-        title:
-          type: string
-    QuestionnaireAnswerResponse_inner:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+      description: Schema for submitting questionnaire responses.
+    UserResponse:
       type: object
       properties:
-        id:
+        question:
           type: integer
-        title:
+          description: ID of the question being answered
+        text_response:
           type: string
-        user_preference:
+          nullable: true
+          description: Text response for text-type questions
+        numeric_response:
+          type: integer
+          nullable: true
+          description: Numeric response (1-5) for radio-type questions
+      description: Schema for a user's response to a question.
+    UserResponsesResponse:
+      type: object
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponseDetail'
+      description: Schema for retrieving user's questionnaire responses.
+    UserResponseDetail:
+      type: object
+      properties:
+        question:
+          $ref: '#/components/schemas/Question'
+        text_response:
           type: string
+          nullable: true
+        numeric_response:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      description: Schema for a detailed user response including question details.
     QuestionnaireRequest_questions:
       type: object
       properties:
@@ -579,3 +859,7 @@ components:
       type: apiKey
       name: X-App-Verification
       in: header
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

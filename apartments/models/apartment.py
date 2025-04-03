@@ -3,6 +3,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.contrib.auth.models import User
 
 from apartments.models import City
 
@@ -14,6 +15,7 @@ class Apartment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="apartments", null=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="apartments")
     street = models.CharField(max_length=50)
     type = models.CharField(max_length=50)
