@@ -28,6 +28,7 @@ class Question(models.Model):
     title = models.CharField(max_length=255)
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES)
     order = models.IntegerField(default=0)
+    weight = models.FloatField(default=1.0, help_text="Weight factor for this question in compatibility calculations")
     # For radio options, store as JSON
     options = models.JSONField(null=True, blank=True)
     # For text inputs, store placeholder

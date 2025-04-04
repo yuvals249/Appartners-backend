@@ -16,7 +16,7 @@ class Apartment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="apartments", null=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="apartments")
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="apartments", db_index=True)
     street = models.CharField(max_length=50)
     type = models.CharField(max_length=50)
     house_number = models.IntegerField()
@@ -26,6 +26,9 @@ class Apartment(models.Model):
     total_price = models.DecimalField(max_digits=6, decimal_places=2)
     available_entry_date = models.DateField()
     about = models.TextField(null=True, blank=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    area = models.CharField(max_length=100, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         """

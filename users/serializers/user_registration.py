@@ -17,7 +17,7 @@ class UserRegistrationSerializer(serializers.Serializer):
     preferred_city = serializers.CharField(required=True)
     phone_number = serializers.CharField(required=True)
     about_me = serializers.CharField(required=False, allow_blank=True)
-    photo = serializers.ImageField(required=False)
+    photo = serializers.ImageField(required=True)
     
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():

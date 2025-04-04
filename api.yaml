@@ -1,24 +1,24 @@
 openapi: 3.0.0
 info:
   title: Appartners API
-  description: "API documentation for the Appartners application, which helps users find apartments."
+  description: "API documentation for the Appartners application, which helps users find apartments and roommates."
   version: 1.0.0
 servers:
-- url: https://virtserver.swaggerhub.com/TOMSH610/Appartners/1.0.0
-  description: SwaggerHub API Auto Mocking
-- url: https://api.appartners.com
+- url: http://localhost:8000/api/v1
+  description: Local Development Server
+- url: https://api.appartners.com/api/v1
   description: Production server
-- url: https://dev.api.appartners.com
-  description: Development server
 security:
 - AppVerification: []
 tags:
 - name: Authenticate
-  description: Endpoints related to user registration and validation
+  description: Endpoints related to user authentication, registration and validation
 - name: Users
-  description: "Endpoints related to user actions like questionnaires, preferences, and profile management."
+  description: "Endpoints related to user profile management and preferences."
 - name: Apartments
-  description: "Endpoints related to appartments actions like posting a new one, getting available one and so on."
+  description: "Endpoints related to apartment management, creation, and searching."
+- name: Questionnaire
+  description: "Endpoints related to user questionnaires and responses."
 paths:
   /authenticate/validate-unique/:
     post:
@@ -35,35 +35,62 @@ paths:
       responses:
         "200":
           description: Valid details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email_valid:
+                    type: boolean
+                  phone_valid:
+                    type: boolean
         "400":
           description: Invalid or non-unique details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  email_valid:
+                    type: boolean
+                  phone_valid:
+                    type: boolean
   /authenticate/payload/:
     get:
       tags:
       - Authenticate
       summary: Get list of cities
-      description: Returns a payload with a list of all cities.
+      description: Returns a payload with a list of all active cities for registration.
       responses:
         "200":
           description: A list of cities
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CitiesResponse'
-  /authenticate/new/:
+                type: object
+                properties:
+                  cities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/City'
+        "500":
+          description: Server error
+  /authenticate/register/:
     post:
       tags:
       - Authenticate
       summary: Register a new user
-      description: Registers a user with all the required details and logs them in if successful.
+      description: Registers a user with all the required details and logs them in if successful. Photo upload is required.
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/UserRegistrationRequest'
         required: true
       responses:
-        "200":
+        "201":
           description: User registered successfully
           content:
             application/json:
@@ -71,6 +98,141 @@ paths:
                 $ref: '#/components/schemas/UserRegistrationResponse'
         "400":
           description: Error in registration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /authenticate/login/:
+    post:
+      tags:
+      - Authenticate
+      summary: Login a user
+      description: Authenticates a user with email and password. The email check is case-insensitive.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        "200":
+          description: User logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "400":
+          description: Invalid credentials or account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /users/userDetails/:
+    get:
+      tags:
+      - Users
+      summary: Get all user details
+      description: Returns details for all users in the system.
+      responses:
+        "200":
+          description: A list of user details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDetails'
+        "500":
+          description: Server error
+  /users/preferences/payload:
+    get:
+      tags:
+      - Users
+      summary: Get user preferences payload
+      description: Returns all relevant categorical data for user preferences.
+      responses:
+        "200":
+          description: User preferences payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencesPayloadResponse'
+      security:
+      - UserAuth: []
+  /users/preferences/:
+    post:
+      tags:
+      - Users
+      summary: Update user preferences
+      description: Updates user preferences for filtering apartments.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesRequest'
+        required: true
+      responses:
+        "200":
+          description: Preferences updated successfully
+        "400":
+          description: Error updating preferences
+      security:
+      - UserAuth: []
+  /users/preferences/{user_preferences_id}/:
+    get:
+      tags:
+      - Users
+      summary: Get user preferences by ID
+      description: Returns user preferences for the specified ID.
+      parameters:
+      - name: user_preferences_id
+        in: path
+        description: ID of the user preferences to retrieve
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: User preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        "404":
+          description: User preferences not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
   /users/questionnaire/payload/:
     get:
       tags:
@@ -137,219 +299,66 @@ paths:
           description: Error updating questionnaire
       security:
       - UserAuth: []
-  /users/preferences/payload:/
-    get:
-      tags:
-      - Users
-      summary: Get user preferences payload
-      description: Returns all relevant categorical data for user preferences.
-      responses:
-        "200":
-          description: User preferences payload
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserPreferencesPayloadResponse'
-      security:
-      - UserAuth: []
-  /users/preferences/:
-    post:
-      tags:
-      - Users
-      summary: Update user preferences
-      description: Updates user preferences for filtering apartments.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserPreferencesRequest'
-        required: true
-      responses:
-        "200":
-          description: Preferences updated successfully
-        "400":
-          description: Error updating preferences
-      security:
-      - UserAuth: []
-  /users/preferences/{id}/:
-    get:
-      tags:
-      - Users
-      summary: Get user preferences by ID
-      description: Returns user preferences if they exist.
-      parameters:
-      - name: id
-        in: path
-        description: The ID of the user preferences
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: integer
-      responses:
-        "200":
-          description: User preferences object
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserPreferencesRequest'
-      security:
-      - UserAuth: []
-    put:
-      tags:
-      - Users
-      summary: Update user preferences by ID
-      description: Updates user preferences by a specific ID.
-      parameters:
-      - name: id
-        in: path
-        description: The ID of the user preferences
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserPreferencesRequest'
-        required: true
-      responses:
-        "200":
-          description: Preferences updated successfully
-        "400":
-          description: Error updating preferences
   /apartments/post-payload/:
     get:
       tags:
       - Apartments
-      summary: Get dropdown data for apartment post
-      description: Returns dropdown data needed for posting an apartment.
+      summary: Get apartment post payload
+      description: Returns all necessary data for posting a new apartment (cities, features).
       responses:
         "200":
-          description: Dropdown data for apartments
+          description: Apartment post payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApartmentPayloadResponse'
-      security:
-      - UserAuth: []
+                $ref: '#/components/schemas/ApartmentPostPayloadResponse'
+        "500":
+          description: Server error
   /apartments/new/:
     post:
       tags:
       - Apartments
-      summary: Post a new apartment
-      description: Posts a new apartment with all necessary details.
+      summary: Create a new apartment
+      description: Creates a new apartment with the provided details. At least one photo is required.
+      security:
+      - UserAuth: []
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/ApartmentRequest'
         required: true
       responses:
-        "200":
-          description: Apartment posted successfully
-        "400":
-          description: Error posting apartment
-      security:
-      - UserAuth: []
-  /apartments/{id}/:
-    get:
-      tags:
-      - Apartments
-      summary: Get user-posted apartment by ID
-      description: Returns the apartment details posted by the user for a given ID.
-      parameters:
-      - name: id
-        in: path
-        description: The ID of the apartment
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: integer
-      responses:
-        "200":
-          description: Apartment details
+        "201":
+          description: Apartment created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApartmentResponse'
         "400":
-          description: Apartment not found
-      security:
-      - UserAuth: []
-  /apartments/limit/:
-    get:
-      tags:
-      - Apartments
-      summary: Get relevant apartments based on preferences
-      description: "Returns a list of apartments relevant to the user’s preferences, up to a specified limit."
-      parameters:
-      - name: limit
-        in: query
-        description: Maximum number of apartments to retrieve
-        required: true
-        style: form
-        explode: true
-        schema:
-          type: integer
-      responses:
-        "200":
-          description: Relevant apartments
+          description: Error in apartment creation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApartmentResponse'
-      security:
-      - UserAuth: []
-  /apartments/preference/:
-    post:
-      tags:
-      - Apartments
-      summary: Like or dislike an apartment
-      description: Allows the user to like or dislike an apartment.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApartmentLikeRequest'
-        required: true
-      responses:
-        "200":
-          description: Operation successful
-        "400":
-          description: Error in liking/disliking the apartment
-      security:
-      - UserAuth: []
-  /apartments/my/:
-    get:
-      tags:
-      - Apartments
-      summary: Get apartments created by the authenticated user
-      description: Returns all apartments that were created by the currently authenticated user
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: List of user's apartments retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ApartmentResponse'
-        "401":
-          description: Unauthorized - invalid or missing token
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /apartments/{apartment_id}/:
     get:
       tags:
       - Apartments
-      summary: Get an apartment by ID
-      description: Returns a specific apartment by its ID
+      summary: Get apartment by ID
+      description: Returns details for a specific apartment.
       parameters:
       - name: apartment_id
         in: path
@@ -360,22 +369,36 @@ paths:
           format: uuid
       responses:
         "200":
-          description: Apartment retrieved successfully
+          description: Apartment details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApartmentResponse'
-        "404":
-          description: Apartment not found
         "400":
           description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
     delete:
       tags:
       - Apartments
-      summary: Delete an apartment by ID
-      description: Deletes an apartment and all its related data (features, likes, etc.)
+      summary: Delete apartment by ID
+      description: Deletes an apartment if the authenticated user is the owner.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       parameters:
       - name: apartment_id
         in: path
@@ -387,27 +410,102 @@ paths:
       responses:
         "200":
           description: Apartment deleted successfully
-        "401":
-          description: Unauthorized - invalid or missing token
-        "403":
-          description: Forbidden - user doesn't own the apartment
-        "404":
-          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         "400":
           description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "403":
+          description: Not authorized to delete this apartment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
-  /apartments/liked/:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /apartments/preference/:
+    post:
+      tags:
+      - Apartments
+      summary: Like or unlike an apartment
+      description: Sets a user's preference (like/unlike) for an apartment.
+      security:
+      - UserAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApartmentLikeRequest'
+        required: true
+      responses:
+        "200":
+          description: Preference set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /apartments/my/:
     get:
       tags:
       - Apartments
-      summary: Get apartments liked by the authenticated user
-      description: Returns all apartments that the currently authenticated user has liked
+      summary: Get user's apartments
+      description: Returns all apartments created by the authenticated user.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       responses:
         "200":
-          description: List of user's liked apartments retrieved successfully
+          description: List of user's apartments
           content:
             application/json:
               schema:
@@ -415,81 +513,199 @@ paths:
                 items:
                   $ref: '#/components/schemas/ApartmentResponse'
         "401":
-          description: Unauthorized - invalid or missing token
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
-  /apartments/liker/:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /apartments/liked/:
     get:
       tags:
       - Apartments
-      summary: Get users who liked the authenticated user's apartment
-      description: Returns all users who liked the apartment created by the currently authenticated user
+      summary: Get user's liked apartments
+      description: Returns all apartments liked by the authenticated user.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       responses:
         "200":
-          description: List of users who liked the apartment retrieved successfully
+          description: List of liked apartments
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    email:
-                      type: string
-                      format: email
-                    first_name:
-                      type: string
-                    last_name:
-                      type: string
-                    phone_number:
-                      type: string
+                  $ref: '#/components/schemas/ApartmentResponse'
         "401":
-          description: Unauthorized - invalid or missing token
-        "404":
-          description: Not found - user has no apartments
-        "500":
-          description: Server error
-  /questionnaire/:
-    get:
-      tags:
-      - Users
-      summary: Get questionnaire templates
-      description: Returns all questionnaire templates with their questions in order, or a specific template if ID is provided.
-      parameters:
-      - in: query
-        name: id
-        schema:
-          type: integer
-        required: false
-        description: Optional ID of a specific questionnaire template to retrieve
-      responses:
-        "200":
-          description: Questionnaire templates retrieved successfully
+          description: Unauthorized
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/QuestionnaireResponse'
-                  - type: array
-                    items:
-                      $ref: '#/components/schemas/QuestionnaireResponse'
-        "404":
-          description: No questionnaire templates found
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /apartments/likers/:
+    get:
+      tags:
+      - Apartments
+      summary: Get users who liked user's apartments
+      description: Returns all users who liked the authenticated user's apartments.
+      security:
+      - UserAuth: []
+      responses:
+        "200":
+          description: List of users who liked user's apartments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDetails'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /apartments/limit/:
+    get:
+      tags:
+      - Apartments
+      summary: Get relevant apartments based on preferences
+      description: "Returns a list of apartments relevant to the user's preferences, up to a specified limit."
+      security:
+      - UserAuth: []
+      parameters:
+      - name: limit
+        in: query
+        description: Maximum number of apartments to retrieve
+        required: false
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+      responses:
+        "200":
+          description: List of recommended apartments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  apartments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApartmentResponse'
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /questionnaire/:
+    get:
+      tags:
+      - Questionnaire
+      summary: Get questionnaire templates
+      description: Returns all questionnaire templates with their questions in order, or a specific template if ID is provided.
+      parameters:
+      - name: id
+        in: query
+        description: Optional ID of a specific questionnaire template to retrieve
+        required: false
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Questionnaire templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionnaireResponse'
+        "404":
+          description: Questionnaire template not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /questionnaire/responses/:
     post:
       tags:
-      - Users
+      - Questionnaire
       summary: Submit questionnaire responses
       description: Submit user responses to questionnaire questions.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -498,40 +714,73 @@ paths:
         required: true
       responses:
         "201":
-          description: Responses saved successfully
+          description: Responses submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         "400":
-          description: Invalid request data
-        "401":
-          description: Unauthorized - invalid or missing token
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
     get:
       tags:
-      - Users
+      - Questionnaire
       summary: Get user's questionnaire responses
       description: Retrieve the user's responses to the questionnaire.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       responses:
         "200":
           description: User responses retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponsesResponse'
-        "401":
-          description: Unauthorized - invalid or missing token
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
         "404":
-          description: No responses found for this user
+          description: No responses found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
     put:
       tags:
-      - Users
+      - Questionnaire
       summary: Update user's questionnaire responses
       description: Update the user's responses to the questionnaire.
       security:
-        - BearerAuth: []
+      - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -541,12 +790,31 @@ paths:
       responses:
         "200":
           description: Responses updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         "400":
-          description: Invalid request data
-        "401":
-          description: Unauthorized - invalid or missing token
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "500":
           description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 components:
   schemas:
     ValidateUniqueRequest:
@@ -574,43 +842,81 @@ components:
         email:
           type: string
           format: email
-        phone:
+        password:
           type: string
+          format: password
         first_name:
           type: string
         last_name:
           type: string
+        gender:
+          type: string
+          enum: [Male, Female, Other]
+        occupation:
+          type: string
+        birth_date:
+          type: string
+          format: date
         preferred_city:
           type: string
-        preferred_area:
+        phone_number:
           type: string
-        gender:
+        about_me:
           type: string
         photo:
           type: string
           format: binary
-        occupation:
-          type: string
-        birthdate:
-          type: string
-          format: date
-        about_me:
-          type: string
-        password:
-          type: string
-          format: password
+          description: User profile photo (required)
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+        - gender
+        - occupation
+        - birth_date
+        - preferred_city
+        - phone_number
+        - photo
       description: Schema for user registration request.
     UserRegistrationResponse:
       type: object
       properties:
-        user_id:
+        message:
           type: string
-        email:
+          example: "User registered successfully"
+        user:
+          type: object
+          properties:
+            first_name:
+              type: string
+            last_name:
+              type: string
+            gender:
+              type: string
+            occupation:
+              type: string
+            birth_date:
+              type: string
+              format: date
+            phone_number:
+              type: string
+            preferred_city:
+              type: string
+            about_me:
+              type: string
+            photo:
+              type: string
+              format: uri
+              description: Reference to the stored photo in Cloudinary
+            photo_url:
+              type: string
+              format: uri
+              description: Full URL to the user's photo in Cloudinary
+        UserAuth:
           type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
+          format: jwt
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       description: Schema for user registration response.
     QuestionnaireResponse:
       type: object
@@ -693,29 +999,29 @@ components:
         price_range:
           $ref: '#/components/schemas/UserPreferencesRequest_price_range'
       description: Schema for updating user preferences.
-    ApartmentPayloadResponse:
+    ApartmentPostPayloadResponse:
       type: object
       properties:
-        features:
-          type: array
-          items:
-            type: string
         cities:
           type: array
           items:
             type: string
-      description: Schema for apartment dropdown payload.
+        features:
+          type: array
+          items:
+            type: string
+      description: Schema for apartment post payload.
     ApartmentRequest:
       type: object
       properties:
         city:
-          type: string
+          type: integer
         street:
           type: string
         type:
           type: string
         house_number:
-          type: string
+          type: integer
         floor:
           type: integer
         number_of_rooms:
@@ -737,20 +1043,35 @@ components:
           type: array
           items:
             type: string
+            format: binary
+          description: Apartment photos (at least one is required)
+          minItems: 1
+      required:
+        - city
+        - street
+        - type
+        - house_number
+        - floor
+        - number_of_rooms
+        - available_rooms
+        - total_price
+        - available_entry_date
+        - photos
       description: Schema for posting an apartment.
     ApartmentResponse:
       type: object
       properties:
         id:
-          type: integer
-        city:
           type: string
+          format: uuid
+        city:
+          type: integer
         street:
           type: string
         type:
           type: string
         house_number:
-          type: string
+          type: integer
         floor:
           type: integer
         number_of_rooms:
@@ -759,19 +1080,30 @@ components:
           type: integer
         total_price:
           type: number
-        features:
-          type: array
-          items:
-            type: string
         available_entry_date:
           type: string
           format: date
         about:
           type: string
-        photos:
+        feature_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+        created_at:
+          type: string
+          format: date-time
+        photo_urls:
           type: array
           items:
             type: string
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+        area:
+          type: string
       description: Schema for returning apartment details.
     ApartmentLikeRequest:
       type: object
@@ -851,6 +1183,124 @@ components:
           type: number
         max:
           type: number
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - email
+        - password
+      description: Schema for user login request.
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "User logged in successfully"
+        user:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            first_name:
+              type: string
+            last_name:
+              type: string
+            gender:
+              type: string
+            occupation:
+              type: string
+            birth_date:
+              type: string
+              format: date
+            phone_number:
+              type: string
+            preferred_city:
+              type: string
+            about_me:
+              type: string
+            photo:
+              type: string
+              format: uri
+        UserAuth:
+          type: string
+          format: jwt
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      description: Schema for user login response.
+    City:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        active:
+          type: boolean
+    UserDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        gender:
+          type: string
+        occupation:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        phone_number:
+          type: string
+        preferred_city:
+          type: string
+        about_me:
+          type: string
+        photo:
+          type: string
+          format: uri
+    UserPreferences:
+      type: object
+      properties:
+        id:
+          type: string
+        city:
+          type: string
+        preferred_move_in_date:
+          type: string
+          format: date
+        features:
+          type: array
+          items:
+            type: string
+        number_of_roommates:
+          type: integer
+        price_range:
+          $ref: '#/components/schemas/UserPreferencesRequest_price_range'
+    CityPayload:
+      type: object
+      properties:
+        cities:
+          type: array
+          items:
+            $ref: '#/components/schemas/City'
+        city_areas:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
   securitySchemes:
     UserAuth:
       type: http

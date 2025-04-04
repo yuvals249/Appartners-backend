@@ -26,7 +26,7 @@ class UserPreferencesAdmin(admin.ModelAdmin):
 class QuestionInline(admin.TabularInline):
     model = Question
     extra = 1  # Number of empty forms to display
-    fields = ('title', 'question_type', 'order', 'placeholder', 'options')
+    fields = ('title', 'question_type', 'order', 'weight', 'placeholder', 'options')
 
 
 @admin.register(QuestionnaireTemplate)
@@ -42,7 +42,7 @@ class QuestionnaireTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('title', 'questionnaire', 'question_type', 'order')
+    list_display = ('title', 'questionnaire', 'question_type', 'order', 'weight')
     list_filter = ('questionnaire', 'question_type')
     search_fields = ('title', 'questionnaire__title')
     ordering = ('questionnaire', 'order')

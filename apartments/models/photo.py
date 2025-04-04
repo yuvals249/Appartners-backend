@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from cloudinary.models import CloudinaryField
 
 from apartments.models import Apartment
 
@@ -13,7 +14,7 @@ class ApartmentPhoto(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name="photos")
-    photo = models.ImageField(upload_to='apartments/photos')
+    photo = CloudinaryField('image', folder='apartments/photos')
 
     def __str__(self):
         return f"Photo for Apartment {self.apartment.id}"
