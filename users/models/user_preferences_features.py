@@ -14,7 +14,7 @@ class UserPreferencesFeatures(models.Model):
     user_preferences = models.ForeignKey(UserPreferences, on_delete=models.CASCADE, related_name="user_preference_features")
     feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name="feature_user_preferences")
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) # hello im yuval the bitch
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.user_preferences.id} - {self.feature.name}"
