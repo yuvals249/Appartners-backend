@@ -7,52 +7,36 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-def get_location_data(street, house_number, city_name):
+def get_area_from_coordinates(lat, lon):
     """
-    Get location data from OpenStreetMap Nominatim API.
-    
+    Get area information from coordinates using reverse geocoding.
     Args:
-        street: Street name
-        house_number: House number
-        city_name: City name
+        lat: Latitude
+        lon: Longitude
         
     Returns:
-        tuple: (latitude, longitude, area) or (None, None, None) if not found
+        str: Area name or empty string if not found
     """
     try:
-        # Construct the search query
-        query = f"{street} {house_number}, {city_name}"
-        
-        # Make the request to Nominatim
-        response = requests.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={
-                "q": query,
-                "format": "json",
-                "limit": 1,
-                "addressdetails": 1
-            },
-            headers={"User-Agent": "AppartnerApp/1.0"}
-        )
-        
-        # Check if we got a valid response
+
+        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
+        headers = {
+            "User-Agent": "appartners/1.0 (tomsh610@gmail.com)"
+        }
+
+        response = requests.get(url, headers=headers)
+
         if response.status_code == 200 and response.json():
-            data = response.json()[0]
-            lat = float(data.get("lat"))
-            lon = float(data.get("lon"))
-            
-            # Get area from address details
+            data = response.json()
             address = data.get("address", {})
             area = address.get("suburb") or address.get("residential") or address.get("neighbourhood") or ""
-            
-            return lat, lon, area
-            
-        return None, None, None
-        
+            return area
+
+        return ""
+
     except Exception as e:
-        logger.error(f"Error fetching location data: {str(e)}")
-        return None, None, None
+        logger.error(f"Error fetching area from coordinates: {str(e)}")
+        return ""
 
 
 def add_random_offset(lat, lon):
@@ -70,4 +54,22 @@ def add_random_offset(lat, lon):
     lat_offset = random.uniform(-0.0005, 0.0005)
     lon_offset = random.uniform(-0.0005, 0.0005)
     
-    return lat + lat_offset, lon + lon_offset
+    return float(lat) + lat_offset, float(lon) + lon_offset
+
+
+def truncate_coordinates(lat, lon):
+    """
+    Truncate coordinates to fit within model constraints (max_digits=10, decimal_places=7).
+    
+    Args:
+        lat: Latitude as float
+        lon: Longitude as float
+        
+    Returns:
+        tuple: (truncated_lat, truncated_lon)
+    """
+    # Format to 7 decimal places
+    truncated_lat = float(f"{lat:.7f}")
+    truncated_lon = float(f"{lon:.7f}")
+    
+    return truncated_lat, truncated_lon
