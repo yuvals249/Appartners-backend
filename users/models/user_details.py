@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from cloudinary.models import CloudinaryField
 
 
 class UserDetails(models.Model):
@@ -15,4 +16,4 @@ class UserDetails(models.Model):
     preferred_city = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, unique=True)
     about_me = models.TextField(null=True)
-    photo = models.ImageField(upload_to='users/photos/', null=True)
+    photo = CloudinaryField('image', folder='users/photos', null=True)
