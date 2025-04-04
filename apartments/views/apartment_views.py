@@ -7,89 +7,87 @@ from django.db import DatabaseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from apartments.serializers import ApartmentPostPayloadSerializer
 from apartments.serializers.apartment import ApartmentSerializer
 from apartments.models import Apartment, City
+from apartments.models.photo import ApartmentPhoto
 from appartners.utils import get_user_from_token
-from apartments.utils.location import get_location_data, add_random_offset
+from apartments.utils.location import add_random_offset, get_area_from_coordinates, truncate_coordinates
 
 
 class ApartmentCreateView(APIView):
-    """
-    API View to create a new apartment.
-    """
+    """API View to create a new apartment."""
+    parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        # Extract user from token using centralized function
+        # Extract user and validate photos
         success, result = get_user_from_token(request)
         if not success:
-            return result  # Return the error response
-            
-        user_id = result
+            return result
         
-        # Add user to request data
-        request_data = request.data.copy()
-        request_data['user_id'] = user_id
-        
-        # Handle photos
         photos = request.FILES.getlist('photos')
         if not photos:
-            return Response(
-                {"error": "At least one photo is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        request_data.setlist('photos', photos)
+            return Response({"error": "At least one photo is required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validate the data first
-        serializer = ApartmentSerializer(data=request_data)
+        # Prepare request data
+        request_data = self._prepare_request_data(request, result)
+        
+        # Validate data
+        serializer = ApartmentSerializer(data=request_data, partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-        # Get location data from OpenStreetMap
-        try:
-            street = request_data.get('street')
-            house_number = request_data.get('house_number')
-            city_id = request_data.get('city')
-            
-            # Get city name
-            city_name = City.objects.get(id=city_id).name if city_id else None
-            
-            if street and house_number and city_name:
-                lat, lon, area = get_location_data(street, house_number, city_name)
-                
-                if lat and lon:
-                    # Add random offset to coordinates
-                    offset_lat, offset_lon = add_random_offset(lat, lon)
-                    
-                    # Add to request data
-                    request_data['latitude'] = offset_lat
-                    request_data['longitude'] = offset_lon
-                    request_data['area'] = area
-                    
-                    # Update serializer with new data
-                    serializer = ApartmentSerializer(data=request_data)
-                    if not serializer.is_valid():
-                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            # Log the error but continue with apartment creation
-            print(f"Error processing location data: {str(e)}")
         
-        # Save the apartment
+        # Process location and save apartment
         try:
+            # Process location data
+            request_data = self._process_location_data(request_data)
+            
+            # Update serializer with processed location data
+            serializer = ApartmentSerializer(data=request_data, partial=True)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save apartment
             apartment = serializer.save()
+            
+            # Handle photos
+            for photo in photos:
+                ApartmentPhoto.objects.create(apartment=apartment, photo=photo)
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except ValidationError as e:
-            # Handle model-level validation errors
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except DatabaseError:
-            return Response(
-                {"error": "A database error occurred. Please try again later."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
         except Exception as e:
-            # Handle other exceptions
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _prepare_request_data(self, request, user_id):
+        """Prepare request data with user_id and features."""
+        request_data = {k: v for k, v in request.data.items() if k != 'photos'}
+        request_data['user_id'] = user_id
+        
+        features_list = request.data.getlist('features')
+        if features_list:
+            request_data['features'] = features_list
+            
+        return request_data
+    
+    def _process_location_data(self, request_data):
+        lat, lon = request_data['latitude'], request_data['longitude']
+
+        # Get area from coordinates
+        area = get_area_from_coordinates(lat, lon)
+        if area:
+            request_data['area'] = area
+        
+        # Add random offset and truncate
+        offset_lat, offset_lon = add_random_offset(lat, lon)
+        truncated_lat, truncated_lon = truncate_coordinates(offset_lat, offset_lon)
+        
+        # Update request data with processed coordinates
+        request_data['latitude'] = truncated_lat
+        request_data['longitude'] = truncated_lon
+        
+        return request_data
 
 
 class ApartmentPostPayloadView(APIView):

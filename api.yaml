@@ -326,7 +326,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ApartmentRequest'
+              $ref: '#/components/schemas/ApartmentCreate'
         required: true
       responses:
         "201":
@@ -1011,8 +1011,19 @@ components:
           items:
             type: string
       description: Schema for apartment post payload.
-    ApartmentRequest:
+    ApartmentCreate:
       type: object
+      required:
+        - city
+        - street
+        - type
+        - house_number
+        - floor
+        - number_of_rooms
+        - available_rooms
+        - total_price
+        - available_entry_date
+        - photos
       properties:
         city:
           type: integer
@@ -1030,34 +1041,28 @@ components:
           type: integer
         total_price:
           type: number
-        features:
-          type: array
-          items:
-            type: string
         available_entry_date:
           type: string
           format: date
         about:
           type: string
+        features:
+          type: array
+          items:
+            type: integer
         photos:
           type: array
           items:
             type: string
             format: binary
-          description: Apartment photos (at least one is required)
-          minItems: 1
-      required:
-        - city
-        - street
-        - type
-        - house_number
-        - floor
-        - number_of_rooms
-        - available_rooms
-        - total_price
-        - available_entry_date
-        - photos
-      description: Schema for posting an apartment.
+        latitude:
+          type: number
+          format: float
+          description: Optional latitude coordinate. If provided, will be used instead of geocoding the address.
+        longitude:
+          type: number
+          format: float
+          description: Optional longitude coordinate. If provided, will be used instead of geocoding the address.
     ApartmentResponse:
       type: object
       properties:

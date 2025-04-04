@@ -13,7 +13,7 @@ class ApartmentSerializer(serializers.ModelSerializer):
     feature_details = serializers.SerializerMethodField()
     user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, required=False)
     photos = serializers.ListField(
-        child=serializers.ImageField(), required=True, min_length=1  # Ensure at least one valid photo
+        child=serializers.ImageField(), required=False, write_only=True  # Make photos write-only
     )
     photo_urls = serializers.SerializerMethodField()
 
@@ -35,7 +35,7 @@ class ApartmentSerializer(serializers.ModelSerializer):
 
     def get_photo_urls(self, obj):
         """
-        Get the URLs of the apartment photos
+        Get the URLs of all photos for this apartment.
         """
         return [photo.photo.url for photo in obj.photos.all()]
 
