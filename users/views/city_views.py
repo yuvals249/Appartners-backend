@@ -2,7 +2,6 @@
 City-related views for the users app.
 """
 from django.db import DatabaseError
-from django.db.models import F
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
