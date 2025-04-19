@@ -17,3 +17,4 @@ class UserDetails(models.Model):
     phone_number = models.CharField(max_length=15, unique=True)
     about_me = models.TextField(null=True)
     photo = CloudinaryField('image', folder='users/photos', null=True)
+    is_yad2 = models.BooleanField(default=False)

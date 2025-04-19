@@ -53,9 +53,9 @@ def apply_price_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if hasattr(user_prefs, 'price_range') and user_prefs.price_range:
-        min_price = user_prefs.price_range.get('min', 0)
-        max_price = user_prefs.price_range.get('max', 100000)  # High default max
+    if user_prefs and hasattr(user_prefs, 'min_price') and hasattr(user_prefs, 'max_price'):
+        min_price = user_prefs.min_price
+        max_price = user_prefs.max_price
         return query.filter(total_price__gte=min_price, total_price__lte=max_price)
     return query
 
@@ -71,8 +71,40 @@ def apply_city_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if user_prefs.city:
-        return query.filter(city_id=user_prefs.city.id)
+    if user_prefs and hasattr(user_prefs, 'city') and user_prefs.city:
+        return query.filter(city=user_prefs.city)
+    return query
+
+
+def apply_area_filter(query, user_prefs):
+    """
+    Filter apartments by area/neighborhood.
+    
+    Args:
+        query: Base apartment query
+        user_prefs: User preferences
+        
+    Returns:
+        Filtered query
+    """
+    if user_prefs and hasattr(user_prefs, 'area') and user_prefs.area:
+        return query.filter(area=user_prefs.area)
+    return query
+
+
+def apply_max_floor_filter(query, user_prefs):
+    """
+    Filter apartments by maximum floor preference.
+    
+    Args:
+        query: Base apartment query
+        user_prefs: User preferences
+        
+    Returns:
+        Filtered query
+    """
+    if user_prefs and hasattr(user_prefs, 'max_floor') and user_prefs.max_floor is not None:
+        return query.filter(floor__lte=user_prefs.max_floor)
     return query
 
 
@@ -87,17 +119,14 @@ def apply_roommates_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if hasattr(user_prefs, 'number_of_roommates') and user_prefs.number_of_roommates is not None:
-        num_roommates = user_prefs.number_of_roommates
+    if user_prefs and hasattr(user_prefs, 'number_of_roommates') and user_prefs.number_of_roommates is not None:
+        # Calculate total number of people in the apartment
+        # For example, if user wants 2 roommates, they need an apartment with 3 rooms total
+        total_people = user_prefs.number_of_roommates + 1
         
-        # Calculate the range based on the rule
-        min_rooms = num_roommates
-        if num_roommates >= 2:
-            min_rooms = num_roommates - 1
-            
-        max_rooms = num_roommates + 1
-        
-        return query.filter(number_of_rooms__gte=min_rooms, number_of_rooms__lte=max_rooms)
+        # Filter apartments that can accommodate the total number of people
+        # We're assuming each room can accommodate one person
+        return query.filter(number_of_rooms__gte=total_people)
     return query
 
 
@@ -112,9 +141,15 @@ def apply_features_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if hasattr(user_prefs, 'features') and user_prefs.features.exists():
-        user_feature_ids = user_prefs.features.values_list('id', flat=True)
-        return query.filter(features__id__in=user_feature_ids).distinct()
+    if user_prefs and hasattr(user_prefs, 'user_preference_features'):
+        # Get the features from user preferences
+        feature_ids = user_prefs.user_preference_features.values_list('feature_id', flat=True)
+        
+        if feature_ids:
+            # Filter apartments that have ALL the requested features
+            for feature_id in feature_ids:
+                query = query.filter(apartment_features__feature_id=feature_id)
+                
     return query
 
 
@@ -129,18 +164,10 @@ def apply_date_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if hasattr(user_prefs, 'preferred_move_in_date') and user_prefs.preferred_move_in_date:
-        preferred_date = user_prefs.preferred_move_in_date
-        
-        # Calculate date range (±1 month)
-        min_date = preferred_date - relativedelta(months=1)
-        max_date = preferred_date + relativedelta(months=1)
-        
-        # Filter apartments with available_entry_date within the range
-        return query.filter(
-            Q(available_entry_date__gte=min_date) & 
-            Q(available_entry_date__lte=max_date)
-        )
+    if user_prefs and hasattr(user_prefs, 'move_in_date') and user_prefs.move_in_date:
+        # Only show apartments that are available on or before the user's preferred move-in date
+        # This ensures users don't see apartments that aren't available when they need them
+        return query.filter(available_entry_date__lte=user_prefs.move_in_date)
     return query
 
 
@@ -157,10 +184,9 @@ def filter_apartments(user_id):
     try:
         # Get user preferences
         user_prefs = get_user_preferences(user_id)
-        
         if not user_prefs:
             return Apartment.objects.none()
-        
+            
         # Get apartments the user has already interacted with
         interacted_apartment_ids = get_interacted_apartments(user_id)
         
@@ -174,6 +200,8 @@ def filter_apartments(user_id):
         filtered_query = apply_roommates_filter(filtered_query, user_prefs)
         filtered_query = apply_features_filter(filtered_query, user_prefs)
         filtered_query = apply_date_filter(filtered_query, user_prefs)
+        filtered_query = apply_max_floor_filter(filtered_query, user_prefs)
+        filtered_query = apply_area_filter(filtered_query, user_prefs)
         
         return filtered_query
         

@@ -12,6 +12,6 @@ urlpatterns = [
     path('my/', UserApartmentsView.as_view(), name='user-apartments'),
     path('liked/', UserLikedApartmentsView.as_view(), name='user-liked-apartments'),
     path('likers/', ApartmentLikersView.as_view(), name='apartment-likers'),
-    path('limit/', ApartmentRecommendationView.as_view(), name='apartment-recommendations'),
+    path('recommendations/', ApartmentRecommendationView.as_view(), name='apartment-recommendations'),
     path('<str:apartment_id>/', ApartmentView.as_view(), name='apartment-get'),
 ]

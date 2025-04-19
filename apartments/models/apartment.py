@@ -19,7 +19,6 @@ class Apartment(models.Model):
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="apartments", db_index=True)
     street = models.CharField(max_length=50)
     type = models.CharField(max_length=50)
-    house_number = models.IntegerField()
     floor = models.IntegerField()
     number_of_rooms = models.IntegerField()
     number_of_available_rooms = models.IntegerField()
@@ -29,6 +28,7 @@ class Apartment(models.Model):
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     area = models.CharField(max_length=100, null=True, blank=True)
+    is_yad2 = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         """
@@ -43,9 +43,6 @@ class Apartment(models.Model):
         """
         if not self.type.isalpha():
             raise ValidationError({'type': 'Must contain only letters'})
-
-        if self.house_number <= 0:
-            raise ValidationError({'house_number': 'Must be a positive integer'})
 
         if self.floor <= 0 or self.floor > 100:
             raise ValidationError({'floor': 'Must be a valid integer'})
@@ -69,4 +66,4 @@ class Apartment(models.Model):
             raise ValidationError({'available_entry_date': "Must be in the future"})
 
     def __str__(self):
-        return f'{self.city} {self.street} {self.house_number}'
+        return f"{self.street}, {self.city.name} - {self.number_of_rooms} rooms"
