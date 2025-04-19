@@ -1,27 +1,24 @@
 """
 Core apartment-related views for the apartments app.
 """
-from django.core.exceptions import ValidationError
-from django.db import DatabaseError
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from apartments.serializers import ApartmentPostPayloadSerializer
 from apartments.serializers.apartment import ApartmentSerializer
-from apartments.models import Apartment, City
 from apartments.models.photo import ApartmentPhoto
 from appartners.utils import get_user_from_token
 from apartments.utils.location import add_random_offset, get_area_from_coordinates, truncate_coordinates
-
+from apartments.models import Feature, City
+from apartments.serializers.feature import FeatureSerializer
+from apartments.serializers.city import CitySerializer
 
 class ApartmentCreateView(APIView):
     """API View to create a new apartment."""
     parser_classes = (MultiPartParser, FormParser)
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         # Extract user and validate photos
         success, result = get_user_from_token(request)
         if not success:
@@ -92,9 +89,31 @@ class ApartmentCreateView(APIView):
 
 class ApartmentPostPayloadView(APIView):
     """
-    Get dropdown data for apartment post.
+    Get dropdown data for apartment creation form.
+    Returns active features and cities for use in the apartment creation UI.
     """
     
-    def get(self, request, *args, **kwargs):
-        serializer = ApartmentPostPayloadSerializer()
-        return Response(serializer.data)
+    def get(self, request):
+        """
+        Retrieve active features and cities for apartment creation.
+        """
+        try:
+            # Direct implementation that works
+            # Get active data
+            features = Feature.objects.filter(active=True)
+            cities = City.objects.filter(active=True)
+            
+            # Serialize the data
+            feature_data = FeatureSerializer(features, many=True).data
+            city_data = CitySerializer(cities, many=True).data
+            
+            # Return the response
+            return Response({
+                'features': feature_data,
+                'cities': city_data
+            })
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve apartment form data: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -8,5 +8,5 @@ urlpatterns = [
     path('api/v1/users/', include(users_urlpatterns)),
     path('api/v1/apartments/', include(apartments_urlpatterns)),
     path('api/v1/authenticate/', include(auth_urlpatterns)),
-    path('api/v1/questionaire/', include(questionnaire_urlpatterns)),
+    path('api/v1/questionnaire/', include(questionnaire_urlpatterns)),
 ]

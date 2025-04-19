@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from appartners.utils import decode_jwt
+from appartners.utils import get_user_from_token
 from users.models.questionnaire import QuestionnaireTemplate, UserResponse
 from users.serializers import (
     QuestionnaireTemplateSerializer,
@@ -28,7 +28,7 @@ class QuestionnaireView(APIView):
             
             if not questionnaires.exists():
                 return Response(
-                    {"error": "No questionnaire templates found"},
+                    {"errors": "No questionnaire templates found"},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -41,7 +41,7 @@ class QuestionnaireView(APIView):
                     return Response(serializer.data, status=status.HTTP_200_OK)
                 except QuestionnaireTemplate.DoesNotExist:
                     return Response(
-                        {"error": f"Questionnaire template with ID {template_id} not found"},
+                        {"errors": f"Questionnaire template with ID {template_id} not found"},
                         status=status.HTTP_404_NOT_FOUND
                     )
             
@@ -51,7 +51,7 @@ class QuestionnaireView(APIView):
             
         except DatabaseError:
             return Response(
-                {"error": "A database error occurred. Please try again later"},
+                {"errors": "A database error occurred. Please try again later"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -63,16 +63,15 @@ class UserResponseView(APIView):
     def post(self, request):
         try:
             # Get the user from the token
-            auth_header = request.headers.get('Authorization')
-            if not auth_header or not auth_header.startswith('Bearer '):
-                return Response(
-                    {"error": "Authorization token required"},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+            success, result = get_user_from_token(request)
+            if not success:
+                return result  # Return the error response
                 
-            token = auth_header.split(' ')[1]
-            user_id, _ = decode_jwt(token)
+            user_id = result
             user = User.objects.get(id=user_id)
+            
+            # Delete existing responses for this user
+            UserResponse.objects.filter(user=user).delete()
             
             # Process the responses
             serializer = UserResponseBulkSerializer(
@@ -86,35 +85,26 @@ class UserResponseView(APIView):
                     {"message": "Responses saved successfully"},
                     status=status.HTTP_201_CREATED
                 )
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except (ExpiredSignatureError, InvalidTokenError):
-            return Response(
-                {"error": "Invalid or expired token"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             return Response(
-                {"error": "User not found"},
+                {"errors": "User not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except DatabaseError:
             return Response(
-                {"error": "A database error occurred. Please try again later"},
+                {"errors": "A database error occurred. Please try again later"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def get(self, request):
         try:
             # Get the user from the token
-            auth_header = request.headers.get('Authorization')
-            if not auth_header or not auth_header.startswith('Bearer '):
-                return Response(
-                    {"error": "Authorization token required"},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+            success, result = get_user_from_token(request)
+            if not success:
+                return result  # Return the error response
                 
-            token = auth_header.split(' ')[1]
-            user_id, _ = decode_jwt(token)
+            user_id = result
             user = User.objects.get(id=user_id)
             
             # Get all responses for the user, ordered by question order
@@ -122,7 +112,7 @@ class UserResponseView(APIView):
             
             if not user_responses.exists():
                 return Response(
-                    {"error": "No responses found for this user"},
+                    {"errors": "No responses found for this user"},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -141,61 +131,13 @@ class UserResponseView(APIView):
                 response_data,
                 status=status.HTTP_200_OK
             )
-        except (ExpiredSignatureError, InvalidTokenError):
-            return Response(
-                {"error": "Invalid or expired token"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
         except User.DoesNotExist:
             return Response(
-                {"error": "User not found"},
+                {"errors": "User not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except DatabaseError:
             return Response(
-                {"error": "A database error occurred. Please try again later"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def put(self, request):
-        try:
-            # Get the user from the token
-            auth_header = request.headers.get('Authorization')
-            if not auth_header or not auth_header.startswith('Bearer '):
-                return Response(
-                    {"error": "Authorization token required"},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-                
-            token = auth_header.split(' ')[1]
-            user_id, _ = decode_jwt(token)
-            user = User.objects.get(id=user_id)
-            
-            # Process the responses (same as POST but with different status code)
-            serializer = UserResponseBulkSerializer(
-                data=request.data, 
-                context={'user': user}
-            )
-            
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    {"message": "Responses updated successfully"},
-                    status=status.HTTP_200_OK
-                )
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except (ExpiredSignatureError, InvalidTokenError):
-            return Response(
-                {"error": "Invalid or expired token"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except DatabaseError:
-            return Response(
-                {"error": "A database error occurred. Please try again later"},
+                {"errors": "A database error occurred. Please try again later"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

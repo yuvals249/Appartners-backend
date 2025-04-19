@@ -12,6 +12,11 @@ from apartments.models import Apartment, ApartmentUserLike
 from users.serializers.user_basic import UserBasicSerializer
 from users.models.user_details import UserDetails
 from appartners.utils import get_user_from_token
+from users.serializers.api_user_details import ApiUserDetailsSerializer
+import logging
+
+# Get logger
+logger = logging.getLogger(__name__)
 
 
 class ApartmentLikeView(APIView):
@@ -65,6 +70,7 @@ class ApartmentLikeView(APIView):
 class ApartmentLikersView(APIView):
     """
     API View to retrieve all users who liked the authenticated user's apartment.
+    Returns full user details according to the API specification.
     """
     
     def get(self, request):
@@ -91,20 +97,35 @@ class ApartmentLikersView(APIView):
                 like=True
             ).values_list('user_id', flat=True)
             
+            logger.info(f"Found {len(likers_ids)} likers for apartment {user_apartment.id}")
+            
             # Get the user details for these users
             user_details = UserDetails.objects.filter(user_id__in=likers_ids)
+            
+            logger.info(f"Found {user_details.count()} user details records")
             
             if not user_details.exists():
                 return Response(
                     {"message": "No users have liked your apartment yet"},
                     status=status.HTTP_200_OK
                 )
-                
-            serializer = UserBasicSerializer(user_details, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
             
-        except DatabaseError:
+            try:
+                # Use the API-compliant serializer that matches the full specification
+                serializer = ApiUserDetailsSerializer(user_details, many=True)
+                data = serializer.data
+                logger.info(f"Successfully serialized {len(data)} user details")
+                return Response(data, status=status.HTTP_200_OK)
+            except Exception as serializer_error:
+                logger.error(f"Serializer error: {str(serializer_error)}")
+                return Response(
+                    {"error": f"Error serializing user data: {str(serializer_error)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+        except Exception as e:
+            logger.error(f"Error in ApartmentLikersView: {str(e)}", exc_info=True)
             return Response(
-                {"error": "An error occurred while fetching data"},
+                {"error": f"An error occurred while fetching data: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
