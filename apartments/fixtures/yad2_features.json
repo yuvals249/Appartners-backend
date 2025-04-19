@@ -1,0 +1,110 @@
+[
+  {
+    "model": "apartments.feature",
+    "pk": 1,
+    "fields": {
+      "name": "Laundry Machine",
+      "created_at": "2025-04-19T11:32:52.440414",
+      "updated_at": "2025-04-19T11:32:52.440421"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 2,
+    "fields": {
+      "name": "Furnished",
+      "created_at": "2025-04-19T11:32:52.440423",
+      "updated_at": "2025-04-19T11:32:52.440423"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 5,
+    "fields": {
+      "name": "Pet-friendly",
+      "created_at": "2025-04-19T11:32:52.440425",
+      "updated_at": "2025-04-19T11:32:52.440425"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 6,
+    "fields": {
+      "name": "Parking",
+      "created_at": "2025-04-19T11:32:52.440426",
+      "updated_at": "2025-04-19T11:32:52.440427"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 7,
+    "fields": {
+      "name": "Air Conditioning",
+      "created_at": "2025-04-19T11:32:52.440427",
+      "updated_at": "2025-04-19T11:32:52.440428"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 8,
+    "fields": {
+      "name": "Semi-furnished",
+      "created_at": "2025-04-19T11:32:52.440429",
+      "updated_at": "2025-04-19T11:32:52.440430"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 13,
+    "fields": {
+      "name": "Elevator",
+      "created_at": "2025-04-19T11:32:52.440431",
+      "updated_at": "2025-04-19T11:32:52.440431"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 82,
+    "fields": {
+      "name": "Private Bathroom",
+      "created_at": "2025-04-19T11:32:52.440438",
+      "updated_at": "2025-04-19T11:32:52.440439"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 87,
+    "fields": {
+      "name": "Master Bedroom",
+      "created_at": "2025-04-19T11:32:52.440440",
+      "updated_at": "2025-04-19T11:32:52.440441"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 88,
+    "fields": {
+      "name": "Close To University",
+      "created_at": "2025-04-19T11:32:52.440441",
+      "updated_at": "2025-04-19T11:32:52.440442"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 150,
+    "fields": {
+      "name": "Balcony",
+      "created_at": "2025-04-19T11:32:52.440448",
+      "updated_at": "2025-04-19T11:32:52.440448"
+    }
+  },
+  {
+    "model": "apartments.feature",
+    "pk": 515,
+    "fields": {
+      "name": "Renovated",
+      "created_at": "2025-04-19T11:32:52.440478",
+      "updated_at": "2025-04-19T11:32:52.440479"
+    }
+  }
+]

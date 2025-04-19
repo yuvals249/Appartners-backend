@@ -1,5 +1,12 @@
 from django.contrib import admin
-from users.models import UserDetails, UserPreferences, QuestionnaireTemplate, Question, UserResponse
+from users.models import UserDetails, UserPreferences, QuestionnaireTemplate, Question, UserResponse, UserPreferencesFeatures
+from apartments.models import Feature
+
+
+class UserPreferencesFeaturesInline(admin.TabularInline):
+    model = UserPreferencesFeatures
+    extra = 1
+    autocomplete_fields = ['feature']
 
 
 @admin.register(UserDetails)
@@ -17,10 +24,16 @@ class UserDetailsAdmin(admin.ModelAdmin):
 @admin.register(UserPreferences)
 class UserPreferencesAdmin(admin.ModelAdmin):
     # Search fields in the admin table
-    search_fields = ('city', 'min_price', 'max_price')
+    search_fields = ('city__name', 'min_price', 'max_price', 'area')
 
-    # Display email and created_at in the admin list view
-    list_display = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
+    # Display fields in the admin list view
+    list_display = ('user', 'city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates', 'max_floor', 'area')
+    
+    # Add filter options
+    list_filter = ('city', 'number_of_roommates')
+    
+    # Add inline for features
+    inlines = [UserPreferencesFeaturesInline]
 
 
 class QuestionInline(admin.TabularInline):

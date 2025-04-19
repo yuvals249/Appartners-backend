@@ -20,10 +20,10 @@ class ApartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Apartment
         fields = [
-            'id', 'city', 'street', 'type', 'house_number', 'floor', 'number_of_rooms',
+            'id', 'city', 'street', 'type', 'floor', 'number_of_rooms',
             'number_of_available_rooms', 'total_price', 'available_entry_date',
             'about', 'features', 'feature_details', 'user_id', 'created_at', 'photos', 'photo_urls',
-            'latitude', 'longitude', 'area'
+            'latitude', 'longitude', 'area', 'is_yad2'
         ]
 
     def get_feature_details(self, obj):
@@ -36,8 +36,33 @@ class ApartmentSerializer(serializers.ModelSerializer):
     def get_photo_urls(self, obj):
         """
         Get the URLs of all photos for this apartment.
+        For regular apartments, this returns Cloudinary URLs.
+        For Yad2 apartments, it ensures the URLs have proper file extensions.
         """
-        return [photo.photo.url for photo in obj.photos.all()]
+        photos = list(obj.photos.all())
+        
+        # If there are no photos in the database but the apartment is from Yad2,
+        # the photos might be stored in a different way
+        if not photos and getattr(obj, 'is_yad2', False):
+            # Try to get photo URLs from a custom attribute that might be set during migration
+            if hasattr(obj, 'photo_urls') and obj.photo_urls:
+                return obj.photo_urls
+            
+            return []
+        
+        urls = []
+        for photo in photos:
+            url = photo.photo.url
+            
+            # For Yad2 photos, ensure they have the correct file extension
+            if getattr(obj, 'is_yad2', False) and url and 'yad2.co.il' in url:
+                # If URL doesn't end with a file extension, add .jpeg
+                if not any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif']):
+                    url = f"{url}.jpeg"
+            
+            urls.append(url)
+            
+        return urls
 
     def create(self, validated_data):
         features = validated_data.pop('features', [])

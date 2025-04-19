@@ -13,6 +13,8 @@ class UserPreferences(models.Model):
     number_of_roommates = models.IntegerField()
     min_price = models.IntegerField()
     max_price = models.IntegerField()
+    max_floor = models.IntegerField(null=True, blank=True, help_text="Maximum floor preference (optional)")
+    area = models.CharField(max_length=100, null=True, blank=True, help_text="Preferred neighborhood or area")
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_preferences')
 
@@ -32,6 +34,10 @@ class UserPreferences(models.Model):
         # Ensure number_of_roommates >= 0
         if self.number_of_roommates < 0:
             raise ValidationError("Number of roommates must be greater than or equal to 0.")
+            
+        # Validate max_floor if provided
+        if self.max_floor is not None and self.max_floor < 0:
+            raise ValidationError("Maximum floor must be greater than or equal to 0.")
 
     def save(self, *args, **kwargs):
         # Call full_clean to validate before saving
