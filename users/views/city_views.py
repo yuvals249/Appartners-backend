@@ -23,22 +23,8 @@ class CityPayloadView(APIView):
             # Use the CitySerializer to serialize the cities
             serializer = CitySerializer(cities, many=True)
             
-            # Get areas for each city
-            city_areas = {}
-            for city in cities:
-                # Get unique areas for this city
-                areas = Apartment.objects.filter(
-                    city=city, 
-                    area__isnull=False
-                ).exclude(
-                    area=""
-                ).values_list('area', flat=True).distinct()
-                
-                city_areas[str(city.id)] = list(areas)
-            
             return Response({
-                "cities": serializer.data,
-                "city_areas": city_areas
+                "cities": serializer.data
             }, status=status.HTTP_200_OK)
         except DatabaseError:
             return Response(

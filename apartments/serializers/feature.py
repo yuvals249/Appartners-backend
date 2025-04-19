@@ -10,4 +10,4 @@ class FeatureSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Feature
-        fields = ['id', 'created_at', 'updated_at', 'name']
+        fields = ['id', 'name']
