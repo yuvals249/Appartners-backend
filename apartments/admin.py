@@ -10,8 +10,7 @@ class ApartmentAdmin(admin.ModelAdmin):
     """
     list_display = (
         'id', 'created_at', 'updated_at', 'street', 'type',
-        'house_number', 'floor',
-        'number_of_rooms', 'number_of_available_rooms',
+        'floor', 'number_of_rooms', 'number_of_available_rooms',
         'total_price', 'available_entry_date'
     )
     list_filter = ('city', 'type', 'available_entry_date')
@@ -36,8 +35,9 @@ class FeatureAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'name', 'description', 'active')
     list_filter = ('active',)
-    search_fields = ('name',)
+    search_fields = ('name', 'description')
     ordering = ('name',)
+    autocomplete_fields = []
 
 
 @admin.register(ApartmentFeature)

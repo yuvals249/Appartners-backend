@@ -1,12 +1,11 @@
 from rest_framework import serializers
 
 from ..models import UserPreferences
-from apartments.models import Feature
+from apartments.models import Feature, Apartment
 
 
 class UserPreferencesGetSerializer(serializers.ModelSerializer):
     city = serializers.CharField(source="city.name", read_only=True)  # Return the city name
-    preferred_move_in_date = serializers.DateField(source="move_in_date")  # Use move_in_date directly
     features = serializers.SerializerMethodField()  # Get features using a method
     price_range = serializers.SerializerMethodField()
 
@@ -14,10 +13,12 @@ class UserPreferencesGetSerializer(serializers.ModelSerializer):
         model = UserPreferences
         fields = [
             'city',
-            'preferred_move_in_date',
+            'move_in_date',
             'features',
             'number_of_roommates',
             'price_range',
+            'max_floor',
+            'area',
         ]
 
     def get_price_range(self, obj):

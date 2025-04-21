@@ -1,20 +1,16 @@
 from django.urls import path
 
-from .views import (
-    UserDetailsList,
-    LoginView,
-    UserPreferencesView,
-    ValidateUniqueView,
-    CityPayloadView,
-    RegisterView,
-    QuestionnaireView,
-    UserResponseView,
-)
+from .views.user_views import UserDetailsList, UserPreferencesPayloadView
+from .views.user_preferences_views import UserPreferencesView
+from .views.auth_views import LoginView, ValidateUniqueView, RegisterView
+from .views.city_views import CityPayloadView
+from .views.questionnaire_views import QuestionnaireView, UserResponseView
 
 
 users_urlpatterns = [
-    path('userDetails/', UserDetailsList.as_view(), name='user-details'),
-    path('preferences/<str:user_preferences_id>/', UserPreferencesView.as_view(), name='user-preferences-get'),
+    path('user-details/', UserDetailsList.as_view(), name='user-details'),
+    path('preferences/payload/', UserPreferencesPayloadView.as_view(), name='user-preferences-payload'),
+    path('preferences/', UserPreferencesView.as_view(), name='user-preferences'),
 ]
 
 auth_urlpatterns = [

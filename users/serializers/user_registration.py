@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from users.models.user_details import UserDetails
+import re
 
 
 class UserRegistrationSerializer(serializers.Serializer):
@@ -17,7 +18,7 @@ class UserRegistrationSerializer(serializers.Serializer):
     preferred_city = serializers.CharField(required=True)
     phone_number = serializers.CharField(required=True)
     about_me = serializers.CharField(required=False, allow_blank=True)
-    photo = serializers.ImageField(required=False)
+    photo = serializers.ImageField(required=True)
     
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -27,6 +28,28 @@ class UserRegistrationSerializer(serializers.Serializer):
     def validate_phone_number(self, value):
         if UserDetails.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("Phone number already exists")
+        return value
+    
+    def validate_password(self, value):
+        """
+        Validate that the password:
+        - Is at least 8 characters long
+        - Contains at least one number
+        - Contains at least one letter
+        - Contains at least one uppercase letter
+        """
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long")
+        
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("Password must contain at least one number")
+        
+        if not any(char.isalpha() for char in value):
+            raise serializers.ValidationError("Password must contain at least one letter")
+        
+        if not any(char.isupper() for char in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter")
+        
         return value
     
     def create(self, validated_data):
