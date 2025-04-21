@@ -17,3 +17,7 @@ users/.DS_Store
 .DS_Store
 env/
 create_user_details.sql
+users/utils/__pycache__/
+users/views/__pycache__/
+apartments/utils/__pycache__/
+apartments/views/__pycache__/
