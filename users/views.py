@@ -1,28 +1,21 @@
-from rest_framework.generics import ListAPIView
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+"""
+This file is maintained for backward compatibility.
+All views have been moved to the views/ directory for better organization.
+"""
 
-from users.serializers import LoginInfoSerializer, UserDetailsSerializer, UserPreferencesSerializer
-from users.models import LoginInfo, UserDetails, UserPreferences
+from users.views.auth_views import ValidateUniqueView, LoginView, RegisterView
+from users.views.user_views import UserDetailsList, UserPreferencesView, UserPreferencesPayloadView
+from users.views.city_views import CityPayloadView
+from users.views.questionnaire_views import QuestionnaireView, UserResponseView
 
-
-class LoginInfoList(ListAPIView):
-    queryset = LoginInfo.objects.all()
-    serializer_class = LoginInfoSerializer
-    filter_backends = (SearchFilter,)
-    search_fields = ('email',)
-
-
-class UserDetailsList(ListAPIView):
-    queryset = UserDetails.objects.all()
-    serializer_class = UserDetailsSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter)
-    filterset_fields = ('id',)
-    search_fields = ('first_name', 'last_name', 'phone_number',)
-
-
-class UserPreferencesList(ListAPIView):
-    queryset = UserPreferences.objects.all()
-    serializer_class = UserPreferencesSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter)
-    filterset_fields = ('id', 'area', 'max_price', 'move_in_date', 'number_of_roommates')
+__all__ = [
+    'ValidateUniqueView',
+    'LoginView',
+    'RegisterView',
+    'UserDetailsList',
+    'UserPreferencesView',
+    'CityPayloadView',
+    'QuestionnaireView',
+    'UserResponseView',
+    'UserPreferencesPayloadView',
+]

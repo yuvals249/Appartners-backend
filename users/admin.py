@@ -1,24 +1,12 @@
 from django.contrib import admin
-from .models import LoginInfo, UserDetails, UserPreferences
-from django.contrib.auth.hashers import make_password
+from users.models import UserDetails, UserPreferences, QuestionnaireTemplate, Question, UserResponse, UserPreferencesFeatures
+from apartments.models import Feature
 
-# Admin for LoginInfo
-@admin.register(LoginInfo)
-class LoginInfoAdmin(admin.ModelAdmin):
-    # Exclude password from admin display
 
-    # Search fields in the admin table
-    search_fields = ('email',)
-
-    # Display email and created_at in the admin list view
-    list_display = ('email',)
-
-    # Override save_model to hash password
-    def save_model(self, request, obj, form, change):
-        # Only hash the password if it’s a new entry or if the password was changed
-        if not obj.pk or 'password' in form.changed_data:
-            obj.password = make_password(obj.password)
-        super().save_model(request, obj, form, change)
+class UserPreferencesFeaturesInline(admin.TabularInline):
+    model = UserPreferencesFeatures
+    extra = 1
+    autocomplete_fields = ['feature']
 
 
 @admin.register(UserDetails)
@@ -36,7 +24,49 @@ class UserDetailsAdmin(admin.ModelAdmin):
 @admin.register(UserPreferences)
 class UserPreferencesAdmin(admin.ModelAdmin):
     # Search fields in the admin table
-    search_fields = ('city', 'min_price', 'max_price')
+    search_fields = ('city__name', 'min_price', 'max_price', 'area')
 
-    # Display email and created_at in the admin list view
-    list_display = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
+    # Display fields in the admin list view
+    list_display = ('user', 'city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates', 'max_floor', 'area')
+    
+    # Add filter options
+    list_filter = ('city', 'number_of_roommates')
+    
+    # Add inline for features
+    inlines = [UserPreferencesFeaturesInline]
+
+
+class QuestionInline(admin.TabularInline):
+    model = Question
+    extra = 1  # Number of empty forms to display
+    fields = ('title', 'question_type', 'order', 'weight', 'placeholder', 'options')
+
+
+@admin.register(QuestionnaireTemplate)
+class QuestionnaireTemplateAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_at', 'question_count')
+    search_fields = ('title', 'description')
+    inlines = [QuestionInline]
+    
+    def question_count(self, obj):
+        return obj.questions.count()
+    question_count.short_description = 'Number of Questions'
+
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'questionnaire', 'question_type', 'order', 'weight')
+    list_filter = ('questionnaire', 'question_type')
+    search_fields = ('title', 'questionnaire__title')
+    ordering = ('questionnaire', 'order')
+
+
+@admin.register(UserResponse)
+class UserResponseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'question', 'response_value', 'created_at')
+    list_filter = ('question__questionnaire', 'question')
+    search_fields = ('user__email', 'question__title')
+    
+    def response_value(self, obj):
+        return obj.text_response if obj.text_response else obj.numeric_response
+    response_value.short_description = 'Response'

@@ -11,23 +11,26 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
-from dotenv import load_dotenv
+
+import environ
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+env = environ.Env()
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '15@8nkhn1k%5bz-bl!mmv$m%ncqhv6rv2y2kzr3hs22v_cd6rs'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -42,7 +45,11 @@ INSTALLED_APPS = [
 
     # apps
     'users',
-    'apartments'
+    'apartments',
+
+    'rest_framework',
+    'cloudinary',
+    'cloudinary_storage',
 ]
 
 MIDDLEWARE = [
@@ -53,6 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'appartners.middleware.RequestResponseLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'appartners.urls'
@@ -75,24 +83,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'appartners.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
-# Load environment variables from a .env file
-load_dotenv()
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'appartners'),  # Database name
-        'USER': os.getenv('DB_USER', 'admin'),  # Database user
-        'PASSWORD': os.getenv('DB_PASSWORD', '1111'),  # Database password
-        'HOST': os.getenv('DB_HOST', 'localhost'),  # Database host, default to localhost
-        'PORT': os.getenv('DB_PORT', '5432'),  # Database port, default to 5432
+        'NAME': env('DB_NAME', default='MY_DB'),  # Database name
+        'USER': env('DB_USER', default='MY_USER'),  # Database user
+        'PASSWORD': env('DB_PASSWORD', default='MY_PASSWORD'),  # Database password
+        'HOST': env('DB_HOST', default='localhost'),  # Database host, default to localhost
+        'PORT': env('DB_PORT', default='5432'),  # Database port, default to 5432
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
@@ -112,7 +115,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/
 
@@ -126,8 +128,70 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# Media files configuration
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Cloudinary configuration
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': env('CLOUDINARY_API_KEY'),
+    'API_SECRET': env('CLOUDINARY_API_SECRET'),
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'appartners': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'users': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'apartments': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ]
+}
+
+# Custom authentication backends
+AUTHENTICATION_BACKENDS = [
+    'users.auth.CaseInsensitiveEmailBackend',  # Our custom email auth backend
+    'django.contrib.auth.backends.ModelBackend',  # Default backend
+]

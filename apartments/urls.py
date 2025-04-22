@@ -1,16 +1,18 @@
 from django.urls import path
 from .views import (
-    ApartmentListCreateView,
-    ApartmentDetailView,
-    ApartmentPhotoListView,
-    FeatureListCreateView,
-    AddFeatureToApartmentView
+    ApartmentCreateView, ApartmentPostPayloadView, ApartmentView, 
+    ApartmentLikeView, UserApartmentsView, UserLikedApartmentsView,
+    ApartmentLikersView, ApartmentRecommendationView
 )
 
 urlpatterns = [
-    path('apartments/', ApartmentListCreateView.as_view(), name='apartment-list-create'),
-    path('apartments/<uuid:pk>/', ApartmentDetailView.as_view(), name='apartment-detail'),
-    path('features/', FeatureListCreateView.as_view(), name='feature-list-create'),
-    path('apartments/add-feature/', AddFeatureToApartmentView.as_view(), name='add-feature-to-apartment'),
-    path('apartments/<uuid:apartment_id>/photos/', ApartmentPhotoListView.as_view(), name='apartment-photo-list')
+    path('new/', ApartmentCreateView.as_view(), name='apartment-create'),
+    path('post-payload/', ApartmentPostPayloadView.as_view(), name='apartment-post-payload'),
+    path('preference/', ApartmentLikeView.as_view(), name='apartment-like'),
+    path('my/', UserApartmentsView.as_view(), name='user-apartments'),
+    path('liked/', UserLikedApartmentsView.as_view(), name='user-liked-apartments'),
+    path('likers/', ApartmentLikersView.as_view(), name='apartment-likers'),
+    path('recommendations/', ApartmentRecommendationView.as_view(), name='apartment-recommendations'),
+    path('<str:apartment_id>/', ApartmentView.as_view(), name='apartment-get'),
+    
 ]

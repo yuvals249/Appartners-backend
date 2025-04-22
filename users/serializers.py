@@ -1,34 +1,10 @@
 from rest_framework import serializers
+from .models import User
 
-from users.models import LoginInfo, UserDetails, UserPreferences
-
-
-class LoginInfoSerializer(serializers.ModelSerializer):
+class UserBasicSerializer(serializers.ModelSerializer):
+    """
+    Serializer for basic user information to be returned in API responses.
+    """
     class Meta:
-        model = LoginInfo
-        fields = ('email', 'password')
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        return data
-
-
-class UserDetailsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserDetails
-        fields = ('first_name', 'last_name', 'gender', 'occupation', 'birth_date', 'phone_number', 'preferred_city', 'about_me', 'photo')
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['full_name'] = f'{instance.first_name} {instance.last_name}'
-        return data
-
-
-class UserPreferencesSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserPreferences
-        fields = ('city', 'min_price', 'max_price', 'move_in_date', 'number_of_roommates')
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        return data
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number']
