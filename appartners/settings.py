@@ -221,13 +221,6 @@ AUTHENTICATION_BACKENDS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-#     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-#     'ALGORITHM': 'HS256',
-#     'SIGNING_KEY': SECRET_KEY,
-# }
-
 # הוסף את זה בסוף הקובץ
 FIREBASE_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'firebase_config.json')
 
