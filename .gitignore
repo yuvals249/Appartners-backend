@@ -1,23 +1,25 @@
-appartners/__pycache__/*.pyc
-users/__pycache__/*.pyc
-users/migrations/__pycache__/*.pyc
-.idea/
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual Environment
 venv/
+
+# Environment variables
 *.env
-apartments/__pycache__/
-apartments/migrations/__pycache__/
-users/photos/
-apartments/photos/
-apartments/models/__pycache__/
-apartments/serializers/__pycache__/
-apartments/.DS_Store
-users/models/__pycache__/
-users/serializers/__pycache__/
-users/.DS_Store
+
+# Media and uploads
+test_photo.jpg
+
+# Configuration
+config/
+
+# IDE settings
+.idea/
+
+# macOS system files
 .DS_Store
-env/
+*/.DS_Store
+
+# Database
 create_user_details.sql
-users/utils/__pycache__/
-users/views/__pycache__/
-apartments/utils/__pycache__/
-apartments/views/__pycache__/
