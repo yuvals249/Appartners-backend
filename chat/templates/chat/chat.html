@@ -3,22 +3,27 @@
 <head>
     <title>Appartners Chat</title>
     <style>
+        /* Core styling for chat interface */
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
+        /* Flex container for chat layout */
         .container {
             display: flex;
             gap: 20px;
         }
+        /* Left sidebar with chat rooms */
         .rooms-list {
             width: 300px;
             border-right: 1px solid #ccc;
             padding-right: 20px;
         }
+        /* Main chat area */
         .chat-messages {
             flex-grow: 1;
         }
+        /* Individual room styling */
         .room-item {
             padding: 10px;
             margin: 5px 0;
@@ -32,23 +37,28 @@
         .room-item.active {
             background-color: #e3f2fd;
         }
+        /* Message bubble styling */
         .message {
             padding: 10px;
             margin: 5px 0;
             border-radius: 5px;
         }
+        /* Right-aligned sent messages */
         .message.sent {
             background-color: #e3f2fd;
             margin-left: 20%;
         }
+        /* Left-aligned received messages */
         .message.received {
             background-color: #f0f0f0;
             margin-right: 20%;
         }
+        /* Login form container */
         .login-container {
             max-width: 400px;
             margin: 50px auto;
         }
+        /* Message input area */
         .message-input {
             width: 100%;
             padding: 10px;
@@ -66,6 +76,7 @@
     </style>
 </head>
 <body>
+    <!-- Login Section -->
     <div id="loginSection" class="login-container">
         <h2>Login</h2>
         <div>
@@ -75,13 +86,15 @@
         </div>
     </div>
 
+    <!-- Main Chat Interface -->
     <div id="chatSection" class="hidden">
         <h2>Appartners Chat</h2>
         <div class="container">
+            <!-- Rooms List Sidebar -->
             <div class="rooms-list" id="roomsList">
                 <h3>Chat Rooms</h3>
-                <!-- Rooms will be listed here -->
             </div>
+            <!-- Active Chat Area -->
             <div class="chat-messages" id="chatMessages">
                 <h3 id="currentRoomTitle">Select a room</h3>
                 <div id="messages"></div>
@@ -94,10 +107,15 @@
     </div>
 
     <script>
-        let currentToken = '';
-        let currentUser = null;
-        let currentRoom = null;
+        // Global state variables
+        let currentToken = '';  // Stores JWT token
+        let currentUser = null; // Stores logged-in user info
+        let currentRoom = null; // Stores active chat room
 
+        /**
+         * Handles user login
+         * Makes API call to login endpoint and initializes chat if successful
+         */
         async function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -125,6 +143,10 @@
             }
         }
 
+        /**
+         * Fetches all chat rooms for the current user
+         * Updates the rooms list in the UI
+         */
         async function loadRooms() {
             try {
                 const response = await fetch('http://localhost:8000/api/v1/chat/rooms/', {
@@ -139,6 +161,10 @@
             }
         }
 
+        /**
+         * Renders the list of chat rooms in the sidebar
+         * @param {Array} rooms - Array of chat room objects
+         */
         function displayRooms(rooms) {
             const roomsList = document.getElementById('roomsList');
             roomsList.innerHTML = '<h3>Chat Rooms</h3>';
@@ -157,6 +183,10 @@
             });
         }
 
+        /**
+         * Handles room selection and loads messages for selected room
+         * @param {Object} room - Selected chat room object
+         */
         async function selectRoom(room) {
             currentRoom = room;
             document.getElementById('currentRoomTitle').textContent = 
@@ -175,6 +205,10 @@
             }
         }
 
+        /**
+         * Renders messages in the active chat room
+         * @param {Array} messages - Array of message objects
+         */
         function displayMessages(messages) {
             const messagesDiv = document.getElementById('messages');
             messagesDiv.innerHTML = '';
@@ -194,6 +228,10 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        /**
+         * Sends a new message in the current chat room
+         * Updates UI and refreshes messages after sending
+         */
         async function sendMessage() {
             if (!currentRoom) return;
             
@@ -217,16 +255,16 @@
 
                 const data = await response.json();
                 document.getElementById('messageInput').value = '';
-                await loadRooms();  // Refresh rooms list to update last message
+                await loadRooms();  // Refresh rooms list
                 if (currentRoom) {
-                    selectRoom(currentRoom);  // Refresh current room messages
+                    selectRoom(currentRoom);  // Refresh messages
                 }
             } catch (error) {
                 console.error('Failed to send message:', error);
             }
         }
 
-        // Allow sending message with Enter key
+        // Event listener for Enter key in message input
         document.getElementById('messageInput')?.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();
