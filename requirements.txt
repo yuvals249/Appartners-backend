@@ -1,6 +1,4 @@
 asgiref==3.8.1
-CacheControl==0.14.2
-cachetools==5.5.2
 certifi==2025.1.31
 cffi==1.17.1
 channels==4.0.0
@@ -29,7 +27,6 @@ grpcio-status==1.71.0
 gunicorn==23.0.0
 httplib2==0.22.0
 idna==3.10
-msgpack==1.1.0
 numpy==2.0.2
 packaging==24.2
 pillow==11.1.0
@@ -42,7 +39,6 @@ pycparser==2.22
 PyJWT==2.9.0
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
 redis==5.2.1
 requests==2.32.3
 rsa==4.9.1
