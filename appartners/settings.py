@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 import os
 from datetime import timedelta
 import json
+import tempfile
 
 import environ
 import firebase_admin
@@ -231,7 +232,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # cred = credentials.Certificate(FIREBASE_CONFIG)
 # initialize_app(cred)
 
-# Initialize Firebase
+# Initialize Firebase securely from FIREBASE_CONFIG (JSON string)
 if not firebase_admin._apps:  # Check if Firebase is not already initialized
-    cred = credentials.Certificate(FIREBASE_CONFIG)
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_file:
+        json.dump(FIREBASE_CONFIG, temp_file)
+        temp_file_path = temp_file.name
+
+    cred = credentials.Certificate(temp_file_path)
     firebase_admin.initialize_app(cred)
+
+    # Clean up the temp file after use (optional but recommended)
+    os.unlink(temp_file_path)
