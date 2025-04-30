@@ -18,6 +18,9 @@ class UserBasicSerializer(serializers.ModelSerializer):
     """
     user_id = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    first_name = serializers.SerializerMethodField()
+    last_name = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
 
     class Meta:
         model = UserDetails
@@ -25,24 +28,43 @@ class UserBasicSerializer(serializers.ModelSerializer):
         
     def get_user_id(self, obj):
         """
-        Retrieves the associated User's ID.
-        
-        Args:
-            obj: UserDetails instance
-            
-        Returns:
-            int: User's ID
+        Get user ID from either User or UserDetails object
         """
+        if isinstance(obj, User):
+            return obj.id
         return obj.user.id
         
     def get_email(self, obj):
         """
-        Retrieves the associated User's email.
-        
-        Args:
-            obj: UserDetails instance
-            
-        Returns:
-            str: User's email
+        Get email from either User or UserDetails object
         """
+        if isinstance(obj, User):
+            return obj.email
         return obj.user.email
+
+    def get_first_name(self, obj):
+        """
+        Get first_name from either User or UserDetails object
+        """
+        if isinstance(obj, User):
+            user_details = UserDetails.objects.filter(user=obj).first()
+            return user_details.first_name if user_details else ""
+        return obj.first_name
+
+    def get_last_name(self, obj):
+        """
+        Get last_name from either User or UserDetails object
+        """
+        if isinstance(obj, User):
+            user_details = UserDetails.objects.filter(user=obj).first()
+            return user_details.last_name if user_details else ""
+        return obj.last_name
+
+    def get_phone_number(self, obj):
+        """
+        Get phone_number from either User or UserDetails object
+        """
+        if isinstance(obj, User):
+            user_details = UserDetails.objects.filter(user=obj).first()
+            return user_details.phone_number if user_details else ""
+        return obj.phone_number
