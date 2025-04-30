@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Appartners Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .rooms-list {
+            width: 300px;
+            border-right: 1px solid #ccc;
+            padding-right: 20px;
+        }
+        .chat-messages {
+            flex-grow: 1;
+        }
+        .room-item {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .room-item:hover {
+            background-color: #f0f0f0;
+        }
+        .room-item.active {
+            background-color: #e3f2fd;
+        }
+        .message {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .message.sent {
+            background-color: #e3f2fd;
+            margin-left: 20%;
+        }
+        .message.received {
+            background-color: #f0f0f0;
+            margin-right: 20%;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+        }
+        .message-input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .message-input input {
+            flex-grow: 1;
+            padding: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginSection" class="login-container">
+        <h2>Login</h2>
+        <div>
+            <input type="email" id="email" placeholder="Email" />
+            <input type="password" id="password" placeholder="Password" />
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <div id="chatSection" class="hidden">
+        <h2>Appartners Chat</h2>
+        <div class="container">
+            <div class="rooms-list" id="roomsList">
+                <h3>Chat Rooms</h3>
+                <!-- Rooms will be listed here -->
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <h3 id="currentRoomTitle">Select a room</h3>
+                <div id="messages"></div>
+                <div class="message-input">
+                    <input type="text" id="messageInput" placeholder="Type a message..." />
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = '';
+        let currentUser = null;
+        let currentRoom = null;
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/authenticate/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                if (data.UserAuth) {
+                    currentToken = data.UserAuth;
+                    currentUser = data.user;
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('chatSection').classList.remove('hidden');
+                    loadRooms();
+                }
+            } catch (error) {
+                console.error('Login failed:', error);
+                alert('Login failed');
+            }
+        }
+
+        async function loadRooms() {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/chat/rooms/', {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+                const rooms = await response.json();
+                displayRooms(rooms);
+            } catch (error) {
+                console.error('Failed to load rooms:', error);
+            }
+        }
+
+        function displayRooms(rooms) {
+            const roomsList = document.getElementById('roomsList');
+            roomsList.innerHTML = '<h3>Chat Rooms</h3>';
+            
+            rooms.forEach(room => {
+                const otherParticipant = room.participants.find(p => p.id !== currentUser.id);
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                div.onclick = () => selectRoom(room);
+                div.innerHTML = `
+                    <strong>${otherParticipant.first_name} ${otherParticipant.last_name}</strong>
+                    <br>
+                    <small>${room.last_message ? room.last_message.content : 'No messages'}</small>
+                `;
+                roomsList.appendChild(div);
+            });
+        }
+
+        async function selectRoom(room) {
+            currentRoom = room;
+            document.getElementById('currentRoomTitle').textContent = 
+                `Chat with ${room.participants.find(p => p.id !== currentUser.id).first_name}`;
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/v1/chat/rooms/${room.id}/messages/`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+                const messages = await response.json();
+                displayMessages(messages);
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+            }
+        }
+
+        function displayMessages(messages) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '';
+            
+            messages.forEach(message => {
+                const div = document.createElement('div');
+                div.className = `message ${message.sender.id === currentUser.id ? 'sent' : 'received'}`;
+                div.innerHTML = `
+                    <strong>${message.sender.first_name}:</strong>
+                    <br>
+                    ${message.content}
+                    <br>
+                    <small>${new Date(message.timestamp).toLocaleString()}</small>
+                `;
+                messagesDiv.appendChild(div);
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendMessage() {
+            if (!currentRoom) return;
+            
+            const content = document.getElementById('messageInput').value;
+            if (!content.trim()) return;
+
+            const otherParticipant = currentRoom.participants.find(p => p.id !== currentUser.id);
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/chat/rooms/send_message_to_user/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        recipient_id: otherParticipant.id,
+                        content: content
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('messageInput').value = '';
+                await loadRooms();  // Refresh rooms list to update last message
+                if (currentRoom) {
+                    selectRoom(currentRoom);  // Refresh current room messages
+                }
+            } catch (error) {
+                console.error('Failed to send message:', error);
+            }
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById('messageInput')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 
