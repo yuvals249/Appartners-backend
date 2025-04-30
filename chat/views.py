@@ -12,20 +12,49 @@ from .authentication import JWTAuthentication
 User = get_user_model()
 
 class ChatViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for handling chat room operations and messages.
+    
+    This ViewSet provides endpoints for managing chat rooms and messages,
+    including room creation, message sending, and message retrieval.
+    All endpoints require JWT authentication.
+
+    Endpoints:
+    - GET /rooms/ - List user's chat rooms
+    - POST /rooms/ - Create new chat room
+    - GET /rooms/{id}/ - Get specific room
+    - POST /rooms/send_message_to_user/ - Send message
+    - GET /rooms/{id}/messages/ - Get room messages
+    """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = ChatRoomSerializer
     
     def get_queryset(self):
+        """
+        Returns only chat rooms where the current user is a participant.
+        Ensures users can only access their own chat rooms.
+        """
         return ChatRoom.objects.filter(participants=self.request.user)
     
     def get_or_create_room(self, user1, user2):
-        """Helper method to get existing room or create new one"""
-        # Prevent creating a room with yourself
+        """
+        Helper method to get existing chat room or create new one.
+        
+        Args:
+            user1: First participant
+            user2: Second participant
+            
+        Returns:
+            ChatRoom: Existing or newly created chat room
+            
+        Raises:
+            ValueError: If attempting to create room with self
+        """
         if user1.id == user2.id:
             raise ValueError("Cannot create a chat room with yourself")
         
-        # Check if room exists
+        # Check if room exists with both participants
         existing_room = ChatRoom.objects.filter(participants=user1)\
             .filter(participants=user2)\
             .first()
@@ -33,14 +62,27 @@ class ChatViewSet(viewsets.ModelViewSet):
         if existing_room:
             return existing_room
             
-        # Create new room
+        # Create new room if none exists
         room = ChatRoom.objects.create()
         room.participants.add(user1, user2)
         return room
 
     @action(detail=False, methods=['post'])
     def send_message_to_user(self, request):
-        """Send a message to any user, creating a chat room if needed"""
+        """
+        Send a message to a user, creating a chat room if needed.
+        
+        Handles message creation in both Django DB and Firebase.
+        Creates a new chat room if one doesn't exist between the users.
+        
+        Request body:
+            recipient_id: ID of user to send message to
+            content: Message content
+            
+        Returns:
+            room: Serialized chat room data
+            message: Serialized message data
+        """
         recipient_id = request.data.get('recipient_id')
         content = request.data.get('content')
         
@@ -68,7 +110,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         # Get or create chat room
         room = self.get_or_create_room(request.user, recipient)
         
-        # Create message in Firebase
+        # Create message in Firebase for real-time updates
         db = firestore.client()
         firebase_message = db.collection('messages').add({
             'room_id': str(room.id),
@@ -87,7 +129,7 @@ class ChatViewSet(viewsets.ModelViewSet):
             is_read=False
         )
         
-        # Update room's last_message_at
+        # Update room's last_message_at timestamp
         room.save()
 
         return Response({
@@ -97,7 +139,18 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
-        """Get messages for a room and mark them as read"""
+        """
+        Get messages for a specific room and mark unread messages as read.
+        
+        Updates read status in both Django DB and Firebase.
+        Returns messages sorted by timestamp.
+        
+        URL Parameters:
+            pk: Room ID
+            
+        Returns:
+            List of serialized messages
+        """
         room = self.get_object()
         
         # Mark unread messages as read (excluding user's own messages)
@@ -125,7 +178,15 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Response(MessageSerializer(messages, many=True).data)
 
     def create(self, request):
-        """Create a new empty chat room"""
+        """
+        Create a new chat room with specified participant.
+        
+        Request body:
+            participant_id: ID of user to create room with
+            
+        Returns:
+            Serialized chat room data
+        """
         participant_id = request.data.get('participant_id')
         if not participant_id:
             return Response(
@@ -145,8 +206,10 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Response(ChatRoomSerializer(room).data)
 
 def test_chat(request):
+    """Renders test chat interface (development only)"""
     return render(request, 'chat/test.html')
 
 # Chat visualization at the backend
 def chat_view(request):
+    """Renders main chat interface"""
     return render(request, 'chat/chat.html')
