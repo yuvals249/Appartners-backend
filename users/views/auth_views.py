@@ -1,5 +1,6 @@
 """
 Authentication-related views for the users app.
+Handles user registration, login, and validation of unique fields.
 """
 import logging
 from django.contrib.auth import authenticate
@@ -9,6 +10,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.utils import timezone
 
 from appartners.utils import generate_jwt
 from users.models import UserDetails
@@ -18,7 +20,18 @@ from users.utils.validators import validate_and_normalize_email, validate_and_no
 
 class ValidateUniqueView(APIView):
     """
-    Validates the user phone number and email to check validity and uniqueness.
+    API endpoint for validating email and phone number uniqueness.
+    Used during registration to check if email/phone are already taken.
+    
+    Endpoint: POST /api/v1/users/validate-unique/
+    Request body:
+        - email: User's email to validate
+        - phone: User's phone number to validate
+    
+    Returns:
+        - 200: Both email and phone are valid and unique
+        - 400: Validation errors (email exists/invalid, phone exists/invalid)
+        - 500: Server error
     """
     def post(self, request):
         email = request.data.get('email')
@@ -75,23 +88,37 @@ class ValidateUniqueView(APIView):
 
 class LoginView(APIView):
     """
-    Login endpoint to authenticate users using email and password.
-    Returns user details from UserDetails model and sets a secure cookie.
+    API endpoint for user authentication.
+    Handles user login and returns user details with JWT token.
+    
+    Endpoint: POST /api/v1/users/login/
+    Request body:
+        - email: User's email
+        - password: User's password
+    
+    Returns:
+        - 200: Login successful (user details + JWT token)
+        - 401: Invalid credentials
+        - 404: User details not found
     """
-
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
         logger = logging.getLogger(__name__)
         logger.info(f"Login attempt with email: {email}")
 
-        # Authenticate the user
+        # Authenticate using Django's auth system
         user = authenticate(request, username=email, password=password)
         if not user:
             return Response(
                 {"error": "Invalid email or password"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        # Update last login timestamp
+        user.last_login = timezone.now()
+        user.save()
+
         # Fetch the user's details from the UserDetails model
         try:
             user_details = UserDetails.objects.get(user=user)
@@ -117,8 +144,27 @@ class LoginView(APIView):
 
 class RegisterView(APIView):
     """
-    Registration endpoint to create a new user with UserDetails.
-    Handles image upload from React Native.
+    API endpoint for user registration.
+    Handles new user creation with profile photo upload.
+    
+    Endpoint: POST /api/v1/users/register/
+    Request body (multipart/form-data):
+        - email: User's email
+        - password: User's password
+        - first_name: User's first name
+        - last_name: User's last name
+        - gender: User's gender
+        - occupation: User's occupation
+        - birth_date: User's birth date
+        - preferred_city: User's preferred city
+        - phone_number: User's phone number
+        - about_me: User's bio (optional)
+        - photo: Profile photo file
+    
+    Returns:
+        - 201: Registration successful (user details + JWT token)
+        - 400: Validation errors or missing photo
+        - 500: Database error
     """
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 

@@ -11,8 +11,11 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+from datetime import timedelta
 
 import environ
+import firebase_admin
+from firebase_admin import credentials
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,14 +45,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
+    'django_extensions',
 
     # apps
     'users',
     'apartments',
+    'chat',
 
     'rest_framework',
     'cloudinary',
     'cloudinary_storage',
+    'rest_framework.authtoken',
+
+    # Chat visualization at the backend
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -61,7 +70,18 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'appartners.middleware.RequestResponseLoggingMiddleware',
+
+    # Chat visualization at the backend
+    'corsheaders.middleware.CorsMiddleware',
 ]
+
+# # Chat visualization at the backend
+# CORS_ALLOW_ALL_ORIGINS = True  # Only for development!
+
+# Chat visualization at the backend
+if not DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = False  # Only for development!
+
 
 ROOT_URLCONF = 'appartners.urls'
 
@@ -187,7 +207,10 @@ LOGGING = {
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-    ]
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'chat.authentication.JWTAuthentication',
+    ],
 }
 
 # Custom authentication backends
@@ -195,3 +218,13 @@ AUTHENTICATION_BACKENDS = [
     'users.auth.CaseInsensitiveEmailBackend',  # Our custom email auth backend
     'django.contrib.auth.backends.ModelBackend',  # Default backend
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# הוסף את זה בסוף הקובץ
+FIREBASE_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'firebase_config.json')
+
+# Initialize Firebase
+if not firebase_admin._apps:  # Check if Firebase is not already initialized
+    cred = credentials.Certificate(FIREBASE_CONFIG_PATH)
+    firebase_admin.initialize_app(cred)

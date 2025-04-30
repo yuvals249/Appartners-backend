@@ -19,4 +19,3 @@ python3/python manage.py migrate
 
 ### Run
 python3/python manage.py runserver
-
