@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 
 import os
 from datetime import timedelta
+import json
 
 import environ
 import firebase_admin
@@ -32,6 +33,8 @@ SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
+
+FIREBASE_CONFIG = json.loads(env('FIREBASE_CONFIG'))
 
 ALLOWED_HOSTS = ['*']
 
@@ -221,10 +224,14 @@ AUTHENTICATION_BACKENDS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# הוסף את זה בסוף הקובץ
-FIREBASE_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'firebase_config.json')
+# # הוסף את זה בסוף הקובץ
+# FIREBASE_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'firebase_config.json')
+
+
+# cred = credentials.Certificate(FIREBASE_CONFIG)
+# initialize_app(cred)
 
 # Initialize Firebase
 if not firebase_admin._apps:  # Check if Firebase is not already initialized
-    cred = credentials.Certificate(FIREBASE_CONFIG_PATH)
+    cred = credentials.Certificate(FIREBASE_CONFIG)
     firebase_admin.initialize_app(cred)
