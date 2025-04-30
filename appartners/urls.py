@@ -4,10 +4,10 @@ from users.urls import users_urlpatterns, auth_urlpatterns, questionnaire_urlpat
 from apartments.urls import urlpatterns as apartments_urlpatterns
 
 # Before Chat visualization at the backend
-# from chat.urls import router  # שנה את זה
+# from chat.urls import router
 
 # Chat visualization at the backend
-from chat.urls import urlpatterns as chat_urlpatterns  # במקום router
+from chat.urls import urlpatterns as chat_urlpatterns
 
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls),
@@ -17,8 +17,8 @@ urlpatterns = [
     path('api/v1/questionnaire/', include(questionnaire_urlpatterns)),
     
     # Before Chat visualization at the backend
-    # path('api/v1/chat/', include(router.urls)),  # שנה את זה
+    # path('api/v1/chat/', include(router.urls)),
     
     # Chat visualization at the backend
-    path('api/v1/chat/', include(chat_urlpatterns)),  # במקום include(router.urls)
+    path('api/v1/chat/', include(chat_urlpatterns)),
 ]
