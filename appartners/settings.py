@@ -74,6 +74,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'appartners.middleware.RequestResponseLoggingMiddleware',
+    'appartners.middleware.UserPresenceMiddleware',
 
     # Chat visualization at the backend
     'corsheaders.middleware.CorsMiddleware',

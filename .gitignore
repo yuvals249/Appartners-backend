@@ -23,3 +23,6 @@ config/
 
 # Database
 create_user_details.sql
+
+#Documents
+docs/

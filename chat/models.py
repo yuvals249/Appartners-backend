@@ -24,7 +24,7 @@ class ChatRoom(models.Model):
     participants = models.ManyToManyField(User, related_name='chat_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         """
         Meta configuration for ChatRoom model.
@@ -54,15 +54,15 @@ class Message(models.Model):
         firebase_id (CharField): Unique identifier for Firebase sync
             - Must be unique across all messages
             - Used for real-time updates with Firebase
-        is_read (BooleanField): Indicates if message has been read
-            - Defaults to False when message is created
+        read_at (DateTimeField): Timestamp when the message was read
+            - Null if the message hasn't been read yet
     """
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     firebase_id = models.CharField(max_length=255, unique=True)
-    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         """
