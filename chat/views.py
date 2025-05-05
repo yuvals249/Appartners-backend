@@ -9,6 +9,11 @@ from .serializers import ChatRoomSerializer, MessageSerializer
 from django.shortcuts import render
 from django.utils import timezone
 from .authentication import JWTAuthentication
+import json
+import asyncio
+import logging
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 User = get_user_model()
 
@@ -26,7 +31,15 @@ class ChatViewSet(viewsets.ModelViewSet):
     - GET /rooms/{id}/ - Get specific room
     - POST /rooms/send_message_to_user/ - Send message
     - GET /rooms/{id}/messages/ - Get room messages
+
+    WebSocket Support:
+    - Messages are broadcast over WebSockets for real-time updates
+    - Read receipts are broadcast over WebSockets
+    - Room updates are broadcast over WebSockets
     """
+
+    # Get the channel layer for WebSocket communication
+    channel_layer = get_channel_layer()
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = ChatRoomSerializer
@@ -142,6 +155,16 @@ class ChatViewSet(viewsets.ModelViewSet):
         # Update room's last_message_at timestamp
         room.save()
 
+        # Broadcast the new message over WebSockets
+        self.broadcast_message(room.id, message)
+
+        # Broadcast room update to reflect the new message to users in the room
+        self.broadcast_room_update(room)
+
+        # Broadcast room update to the recipient, even if they're not in this room
+        # This ensures the sidebar is updated with the new message
+        self.broadcast_room_update_to_user(recipient.id, room)
+
         return Response({
             'room': ChatRoomSerializer(room, context={'request': request}).data,
             'message': MessageSerializer(message, context={'request': request}).data
@@ -183,6 +206,24 @@ class ChatViewSet(viewsets.ModelViewSet):
 
             batch.commit()
 
+            # Get the IDs of the messages that were marked as read
+            message_ids = list(unread_messages.values_list('id', flat=True))
+
+            # Broadcast read receipts over WebSockets
+            self.broadcast_read_receipt(room.id, message_ids, request.user.id)
+
+            # Broadcast room update to reflect the read status changes to users in the room
+            self.broadcast_room_update(room)
+
+            # Get the senders of the messages that were marked as read
+            senders = Message.objects.filter(id__in=message_ids).values_list('sender_id', flat=True).distinct()
+
+            # Broadcast room update to each sender, even if they're not in this room
+            # This ensures their sidebar is updated with the read status
+            for sender_id in senders:
+                if sender_id != request.user.id:  # Don't send to self
+                    self.broadcast_room_update_to_user(sender_id, room)
+
         # Return all messages
         messages = Message.objects.filter(room=room).order_by('timestamp')
         serializer = MessageSerializer(messages, many=True, context={'request': request})
@@ -215,6 +256,157 @@ class ChatViewSet(viewsets.ModelViewSet):
 
         room = self.get_or_create_room(request.user, participant)
         return Response(ChatRoomSerializer(room, context={'request': request}).data)
+
+    def broadcast_message(self, room_id, message):
+        """
+        Broadcasts a new message to all clients connected to the room.
+
+        Args:
+            room_id: ID of the room
+            message: Message object to broadcast
+        """
+        room_group_name = f'chat_{room_id}'
+
+        # Prepare message data for WebSocket
+        message_data = {
+            'id': message.id,
+            'content': message.content,
+            'sender_id': message.sender.id,
+            'sender_name': f"{message.sender.first_name} {message.sender.last_name}",
+            'timestamp': message.timestamp.isoformat(),
+            'is_read': False,
+            'room_id': room_id
+        }
+
+        # Broadcast message to room group
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message_data
+                }
+            )
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error broadcasting message: {str(e)}")
+            # Continue without real-time updates if Redis is not available
+
+    def broadcast_read_receipt(self, room_id, message_ids, reader_id):
+        """
+        Broadcasts a read receipt to all clients connected to the room.
+        Also broadcasts to the senders of the messages directly via their user-specific groups.
+
+        Args:
+            room_id: ID of the room
+            message_ids: List of message IDs that were read
+            reader_id: ID of the user who read the messages
+        """
+        room_group_name = f'chat_{room_id}'
+
+        # Broadcast read receipt to room group
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'read_receipt',
+                    'message_ids': message_ids,
+                    'reader_id': reader_id
+                }
+            )
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error broadcasting read receipt to room: {str(e)}")
+            # Continue without real-time updates if Redis is not available
+
+        # Also broadcast read receipt directly to the senders of the messages
+        # This ensures they receive the update even if they're not currently in the room
+        try:
+            # Get the senders of the messages
+            senders = Message.objects.filter(id__in=message_ids).values_list('sender_id', flat=True).distinct()
+
+            for sender_id in senders:
+                if sender_id != reader_id:  # Don't send to self
+                    user_group_name = f'user_{sender_id}'
+
+                    # Broadcast read receipt to sender's user-specific group
+                    try:
+                        async_to_sync(self.channel_layer.group_send)(
+                            user_group_name,
+                            {
+                                'type': 'read_receipt',
+                                'message_ids': message_ids,
+                                'reader_id': reader_id,
+                                'room_id': room_id  # Include room_id so the client knows which room this is for
+                            }
+                        )
+                        logger = logging.getLogger('chat')
+                        logger.info(f"Read receipt broadcast to user {sender_id} for messages {message_ids}")
+                    except Exception as e:
+                        logger = logging.getLogger('chat')
+                        logger.error(f"Error broadcasting read receipt to user {sender_id}: {str(e)}")
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error getting message senders: {str(e)}")
+
+    def broadcast_room_update(self, room):
+        """
+        Broadcasts a room update to all clients connected to the room.
+
+        Args:
+            room: ChatRoom object that was updated
+        """
+        room_group_name = f'chat_{room.id}'
+
+        # Serialize room data for WebSocket
+        room_data = ChatRoomSerializer(room, context={'request': None}).data
+
+        # Broadcast room update to room group
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'room_update',
+                    'room': room_data
+                }
+            )
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error broadcasting room update: {str(e)}")
+            # Continue without real-time updates if Redis is not available
+
+    def broadcast_room_update_to_user(self, user_id, room):
+        """
+        Broadcasts a room update to all WebSocket connections of a specific user,
+        regardless of which room they are currently viewing.
+
+        This is used to notify users about new messages in rooms they're not currently viewing,
+        so they can see updates in the sidebar without refreshing.
+
+        Args:
+            user_id: ID of the user to send the update to
+            room: ChatRoom object that was updated
+        """
+        user_group_name = f'user_{user_id}'
+
+        # Serialize room data for WebSocket
+        room_data = ChatRoomSerializer(room, context={'request': None}).data
+
+        # Broadcast room update to user's group
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                user_group_name,
+                {
+                    'type': 'room_update',
+                    'room': room_data
+                }
+            )
+            logger = logging.getLogger('chat')
+            logger.info(f"Room update broadcast to user {user_id} for room {room.id}")
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error broadcasting room update to user {user_id}: {str(e)}")
+            # Continue without real-time updates if Redis is not available
 
 def test_chat(request):
     """Renders test chat interface (development only)"""

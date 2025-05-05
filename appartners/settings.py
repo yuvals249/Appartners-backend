@@ -42,6 +42,12 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+
+    # Channels for WebSockets
+    'channels',
+    'daphne',
+
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -107,6 +113,37 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'appartners.wsgi.application'
+ASGI_APPLICATION = 'appartners.asgi.application'
+
+# Channel layers for WebSockets
+# Function to check if Redis is available
+def is_redis_available():
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect(('127.0.0.1', 6379))
+        return True
+    except socket.error:
+        return False
+    finally:
+        sock.close()
+
+# Use Redis channel layer if Redis is available, otherwise use in-memory channel layer
+if is_redis_available():
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [('127.0.0.1', 6379)],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
@@ -198,6 +235,11 @@ LOGGING = {
             'propagate': True,
         },
         'apartments': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'chat': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
