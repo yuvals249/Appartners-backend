@@ -55,13 +55,27 @@ class UserPreferencesView(APIView):
         null_values = [None, '', 'null']
         fields = {
             'move_in_date': data.get('move_in_date'),
-            'number_of_roommates': data.get('number_of_roommates'),
             'max_floor': data.get('max_floor'),
             'area': data.get('area')
         }
         
         # Set None for any null-like values
         cleaned_fields = {k: None if v in null_values else v for k, v in fields.items()}
+        
+        # Handle number_of_roommates as a list or single value
+        number_of_roommates = data.get('number_of_roommates')
+        if number_of_roommates in null_values:
+            # Empty value
+            cleaned_fields['number_of_roommates'] = []
+        elif isinstance(number_of_roommates, list):
+            # Already a list
+            cleaned_fields['number_of_roommates'] = number_of_roommates
+        elif isinstance(number_of_roommates, int) or (isinstance(number_of_roommates, str) and number_of_roommates.isdigit()):
+            # Single integer value - convert to list with one item
+            cleaned_fields['number_of_roommates'] = [int(number_of_roommates)]
+        else:
+            # Default to empty list
+            cleaned_fields['number_of_roommates'] = []
         
         # Extract price range
         price_range = data.get('price_range', {})

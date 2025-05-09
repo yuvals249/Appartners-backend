@@ -962,9 +962,11 @@ components:
           nullable: true
           description: List of feature UUIDs (optional)
         number_of_roommates:
-          type: integer
+          type: array
+          items:
+            type: integer
           nullable: true
-          description: Desired number of roommates (optional)
+          description: List of desired number of roommates (optional)
         price_range:
           type: object
           nullable: true
