@@ -104,12 +104,21 @@ class LoginView(APIView):
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger('authentication')
         logger.info(f"Login attempt with email: {email}")
+
+        # Validate input data
+        if not email or not password:
+            logger.warning(f"Login failed: Missing email or password")
+            return Response(
+                {"error": "Email and password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Authenticate using Django's auth system
         user = authenticate(request, username=email, password=password)
         if not user:
+            logger.warning(f"Login failed: Invalid credentials for email: {email}")
             return Response(
                 {"error": "Invalid email or password"},
                 status=status.HTTP_401_UNAUTHORIZED

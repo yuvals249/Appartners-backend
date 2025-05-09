@@ -119,14 +119,25 @@ def apply_roommates_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if user_prefs and hasattr(user_prefs, 'number_of_roommates') and user_prefs.number_of_roommates is not None:
-        # Calculate total number of people in the apartment
-        # For example, if user wants 2 roommates, they need an apartment with 3 rooms total
-        total_people = user_prefs.number_of_roommates + 1
+    if user_prefs and hasattr(user_prefs, 'number_of_roommates') and user_prefs.number_of_roommates:
+        # If number_of_roommates is empty list, skip filtering
+        if not user_prefs.number_of_roommates:
+            return query
+            
+        # Create a Q object for OR conditions
+        roommate_filter = Q()
         
-        # Filter apartments that can accommodate the total number of people
-        # We're assuming each room can accommodate one person
-        return query.filter(number_of_rooms__gte=total_people)
+        # For each preferred number of roommates, add a condition
+        for num_roommates in user_prefs.number_of_roommates:
+            # Calculate total number of people in the apartment
+            # For example, if user wants 2 roommates, they need an apartment with 3 rooms total
+            total_people = num_roommates + 1
+            
+            # Add this condition to our filter
+            roommate_filter |= Q(number_of_rooms__gte=total_people)
+        
+        # Apply the combined filter
+        return query.filter(roommate_filter)
     return query
 
 

@@ -10,7 +10,7 @@ class UserPreferences(models.Model):
     id = models.AutoField(primary_key=True)  # Auto-incrementing ID field
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="city_user_preferences")
     move_in_date = models.DateField(null=True, blank=True)
-    number_of_roommates = models.IntegerField(null=True, blank=True)
+    number_of_roommates = models.JSONField(null=True, blank=True, default=list, help_text="List of preferred number of roommates")
     min_price = models.IntegerField(null=True, blank=True)
     max_price = models.IntegerField(null=True, blank=True)
     max_floor = models.IntegerField(null=True, blank=True, help_text="Maximum floor preference (optional)")
@@ -31,9 +31,11 @@ class UserPreferences(models.Model):
         if self.move_in_date is not None and self.move_in_date <= now().date():
             raise ValidationError("Move-in date must be in the future.")
 
-        # Ensure number_of_roommates >= 0 if provided
-        if self.number_of_roommates is not None and self.number_of_roommates < 0:
-            raise ValidationError("Number of roommates must be greater than or equal to 0.")
+        # Ensure all values in number_of_roommates list are >= 0 if provided
+        if self.number_of_roommates is not None and isinstance(self.number_of_roommates, list):
+            for num in self.number_of_roommates:
+                if not isinstance(num, int) or num < 0:
+                    raise ValidationError("All roommate values must be non-negative integers.")
             
         # Validate max_floor if provided
         if self.max_floor is not None and self.max_floor < 0:
