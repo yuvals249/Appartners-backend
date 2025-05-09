@@ -78,6 +78,7 @@ def get_recommended_apartments(user_id, limit=10):
     try:
         # Get filtered apartments based on user preferences
         filtered_apartments = filter_apartments(user_id)
+        logger.info(f"Filtered apartments for user {user_id}: {filtered_apartments}")
         
         # If no apartments match the basic criteria, return empty queryset
         if not filtered_apartments.exists():
@@ -90,6 +91,7 @@ def get_recommended_apartments(user_id, limit=10):
         ranked_apartments = rank_apartments_by_compatibility(
             apartment_list, user_id, limit
         )
+        logger.info(f"Ranked apartments for user {user_id}: {ranked_apartments}")
         
         # Convert back to a queryset with preserved order
         return convert_to_ordered_queryset(ranked_apartments)

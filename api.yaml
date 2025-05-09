@@ -1119,6 +1119,35 @@ components:
           format: float
         area:
           type: string
+        user_details:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            first_name:
+              type: string
+            last_name:
+              type: string
+            gender:
+              type: string
+            occupation:
+              type: string
+            birth_date:
+              type: string
+              format: date
+            phone_number:
+              type: string
+            preferred_city:
+              type: string
+            about_me:
+              type: string
+            photo:
+              type: string
+              format: uri
+            photo_url:
+              type: string
+              format: uri
       description: Schema for returning apartment details.
     ApartmentLikeRequest:
       type: object

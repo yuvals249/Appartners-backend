@@ -185,7 +185,7 @@ def filter_apartments(user_id):
         # Get user preferences
         user_prefs = get_user_preferences(user_id)
         if not user_prefs:
-            return Apartment.objects.none()
+            return Apartment.objects.all()
             
         # Get apartments the user has already interacted with
         interacted_apartment_ids = get_interacted_apartments(user_id)

@@ -3,6 +3,8 @@ from apartments.models import City, ApartmentFeature, Feature, ApartmentPhoto
 from apartments.serializers import FeatureSerializer
 from apartments.models.apartment import Apartment
 from django.contrib.auth.models import User
+from users.models.user_details import UserDetails
+from users.serializers.user_details import UserDetailsSerializer
 
 
 class ApartmentSerializer(serializers.ModelSerializer):
@@ -16,6 +18,7 @@ class ApartmentSerializer(serializers.ModelSerializer):
         child=serializers.ImageField(), required=False, write_only=True  # Make photos write-only
     )
     photo_urls = serializers.SerializerMethodField()
+    user_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Apartment
@@ -23,7 +26,7 @@ class ApartmentSerializer(serializers.ModelSerializer):
             'id', 'city', 'street', 'type', 'floor', 'number_of_rooms',
             'number_of_available_rooms', 'total_price', 'available_entry_date',
             'about', 'features', 'feature_details', 'user_id', 'created_at', 'photos', 'photo_urls',
-            'latitude', 'longitude', 'area', 'is_yad2'
+            'latitude', 'longitude', 'area', 'is_yad2', 'user_details'
         ]
 
     def get_feature_details(self, obj):
@@ -32,6 +35,22 @@ class ApartmentSerializer(serializers.ModelSerializer):
         """
         features = [af.feature for af in obj.apartment_features.all()]
         return FeatureSerializer(features, many=True).data
+
+    def get_user_details(self, obj):
+        """
+        Get the user details for the apartment owner
+        """
+        if obj.user:
+            try:
+                user_details = UserDetails.objects.get(user=obj.user)
+                data = UserDetailsSerializer(user_details).data
+                # Remove user_id if it exists in the data
+                if 'user_id' in data:
+                    data.pop('user_id')
+                return data
+            except UserDetails.DoesNotExist:
+                return None
+        return None
 
     def get_photo_urls(self, obj):
         """
