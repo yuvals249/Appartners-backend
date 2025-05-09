@@ -12,6 +12,8 @@ from apartments.serializers.city import CitySerializer
 
 
 class CityPayloadView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     Returns a payload with a list of all active cities and their areas.
     """

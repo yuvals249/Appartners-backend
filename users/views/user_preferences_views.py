@@ -24,12 +24,24 @@ class UserPreferencesView(APIView):
             # Get the user's preferences
             try:
                 user_preferences = UserPreferences.objects.get(user_id=user_id)
+                # Serialize the user preferences
+                serializer = UserPreferencesGetSerializer(user_preferences)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             except UserPreferences.DoesNotExist:
-                return Response({"errors": "User preferences not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-            # Serialize the user preferences
-            serializer = UserPreferencesGetSerializer(user_preferences)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                # Return empty preferences with 200 status code
+                return Response({
+                    "id": None,
+                    "city": None,
+                    "move_in_date": None,
+                    "number_of_roommates": [],
+                    "price_range": {
+                        "min_price": None,
+                        "max_price": None
+                    },
+                    "max_floor": None,
+                    "area": None,
+                    "features": []
+                }, status=status.HTTP_200_OK)
         except DatabaseError:
             return Response(
                 {"errors": "A database error occurred. Please try again later"},

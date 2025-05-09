@@ -19,6 +19,8 @@ from users.utils.validators import validate_and_normalize_email, validate_and_no
 
 
 class ValidateUniqueView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     API endpoint for validating email and phone number uniqueness.
     Used during registration to check if email/phone are already taken.
@@ -87,6 +89,8 @@ class ValidateUniqueView(APIView):
 
 
 class LoginView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     API endpoint for user authentication.
     Handles user login and returns user details with JWT token.
@@ -152,6 +156,8 @@ class LoginView(APIView):
 
 
 class RegisterView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     API endpoint for user registration.
     Handles new user creation with profile photo upload.

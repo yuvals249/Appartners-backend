@@ -208,15 +208,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserPreferences'
-        "404":
-          description: User preferences not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errors:
-                    type: string
         "500":
           description: Server error
           content:
