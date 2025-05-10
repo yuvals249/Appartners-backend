@@ -18,6 +18,8 @@ from users.serializers import (
 
 
 class QuestionnaireView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     Get questionnaire structure
     """

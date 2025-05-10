@@ -1,19 +1,20 @@
 """
 Apartment like-related views for the apartments app.
 """
+import logging
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
-
+from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from apartments.models import Apartment, ApartmentUserLike
-from users.serializers.user_basic import UserBasicSerializer
-from users.models.user_details import UserDetails
 from appartners.utils import get_user_from_token
+from apartments.models import Apartment, ApartmentUserLike
+from users.models.user_details import UserDetails
+from users.serializers.user_basic import UserBasicSerializer
 from users.serializers.api_user_details import ApiUserDetailsSerializer
-import logging
+from users.services.firebase_service import FirebaseService
 
 # Get logger
 logger = logging.getLogger(__name__)
@@ -48,6 +49,31 @@ class ApartmentLikeView(APIView):
                 apartment=apartment,
                 defaults={'like': like}
             )
+            
+            # Send push notification if the user liked the apartment (not if they unliked it)
+            if like and (created or not obj.like):
+                try:
+                    # Get the apartment owner's user ID
+                    apartment_owner_id = apartment.user_id
+                    
+                    # Get the liker's name
+                    liker = User.objects.get(id=user_id)
+                    liker_name = f"{liker.first_name} {liker.last_name}"
+                    
+                    # Get the apartment title or address
+                    apartment_title = apartment.title or f"Apartment at {apartment.street} {apartment.house_number}"
+                    
+                    # Send push notification to the apartment owner
+                    FirebaseService.send_apartment_like_notification(
+                        apartment_owner_id=apartment_owner_id,
+                        liker_name=liker_name,
+                        apartment_title=apartment_title
+                    )
+                    
+                    logger.info(f"Sent push notification to user {apartment_owner_id} about apartment like")
+                except Exception as e:
+                    # Log the error but don't fail the request
+                    logger.error(f"Error sending push notification: {str(e)}")
 
             if created:
                 message = "Apartment like created successfully."
