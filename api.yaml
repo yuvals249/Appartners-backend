@@ -264,7 +264,247 @@ paths:
                 $ref: '#/components/schemas/UserPreferencesPayloadResponse'
       security:
       - BearerAuth: []
-  /users/questionnaire/:
+  /users/update-password/:
+    put:
+      tags:
+      - Users
+      summary: Update user password
+      description: Update the authenticated user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  description: User's current password
+                new_password:
+                  type: string
+                  format: password
+                  description: User's new password
+              required:
+                - current_password
+                - new_password
+      responses:
+        "200":
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password updated successfully"
+        "400":
+          description: Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+      security:
+      - BearerAuth: []
+  /users/update-details/:
+    put:
+      tags:
+      - Users
+      summary: Update user details
+      description: Update the authenticated user's profile details
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  description: User's first name
+                last_name:
+                  type: string
+                  description: User's last name
+                occupation:
+                  type: string
+                  description: User's occupation
+                about_me:
+                  type: string
+                  description: User's bio
+                photo:
+                  type: string
+                  format: binary
+                  description: User's profile photo
+      responses:
+        "200":
+          description: User details updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetails'
+        "400":
+          description: Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: User details not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+      security:
+      - BearerAuth: []
+  /users/device-token/:
+    post:
+      tags:
+      - Users
+      summary: Register device token for push notifications
+      description: Register or update a device token for receiving push notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Firebase Cloud Messaging device token
+                device_type:
+                  type: string
+                  enum: [android, ios, web]
+                  description: Type of device
+              required:
+                - token
+                - device_type
+      responses:
+        "201":
+          description: Device token registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device token registered successfully"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+      security:
+      - BearerAuth: []
+    delete:
+      tags:
+      - Users
+      summary: Delete device token
+      description: Delete a device token to stop receiving push notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Firebase Cloud Messaging device token
+              required:
+                - token
+      responses:
+        "200":
+          description: Device token deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device token deleted successfully"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Device token not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+      security:
+      - BearerAuth: []
+  /questionnaire/:
     get:
       tags:
       - Questionnaire
@@ -1176,6 +1416,13 @@ components:
         id:
           type: integer
         answer:
+          type: string
+    UserPreferencesPayloadResponse_apartment_features:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
           type: string
     UserPreferencesRequest_price_range:
       type: object

@@ -5,12 +5,17 @@ from .views.user_preferences_views import UserPreferencesView
 from .views.auth_views import LoginView, ValidateUniqueView, RegisterView
 from .views.city_views import CityPayloadView
 from .views.questionnaire_views import QuestionnaireView, UserResponseView
+from .views.user_update_views import UpdatePasswordView, UpdateUserDetailsView
+from .views.device_token_views import DeviceTokenView
 
 
 users_urlpatterns = [
     path('user-details/', UserDetailsList.as_view(), name='user-details'),
     path('preferences/payload/', UserPreferencesPayloadView.as_view(), name='user-preferences-payload'),
     path('preferences/', UserPreferencesView.as_view(), name='user-preferences'),
+    path('update-password/', UpdatePasswordView.as_view(), name='update-password'),
+    path('update-details/', UpdateUserDetailsView.as_view(), name='update-details'),
+    path('device-token/', DeviceTokenView.as_view(), name='device-token'),
 ]
 
 auth_urlpatterns = [

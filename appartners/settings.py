@@ -268,7 +268,6 @@ AUTHENTICATION_BACKENDS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# # הוסף את זה בסוף הקובץ
 # FIREBASE_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'firebase_config.json')
 
 
