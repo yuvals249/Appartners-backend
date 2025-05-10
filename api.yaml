@@ -1177,13 +1177,6 @@ components:
           type: integer
         answer:
           type: string
-    UserPreferencesPayloadResponse_apartment_features:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
     UserPreferencesRequest_price_range:
       type: object
       properties:

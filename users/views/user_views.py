@@ -60,6 +60,8 @@ class UserDetailsList(APIView):
 
 
 class UserPreferencesPayloadView(APIView):
+    authentication_classes = []  # No authentication required
+    permission_classes = []  # No permissions required
     """
     View to get payload data for user preferences form.
     Returns cities with their areas and apartment features.

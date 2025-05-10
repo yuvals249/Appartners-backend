@@ -9,8 +9,6 @@ from .serializers import ChatRoomSerializer, MessageSerializer
 from django.shortcuts import render
 from django.utils import timezone
 from .authentication import JWTAuthentication
-import json
-import asyncio
 import logging
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
