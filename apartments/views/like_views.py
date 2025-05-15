@@ -60,8 +60,8 @@ class ApartmentLikeView(APIView):
                     liker = User.objects.get(id=user_id)
                     liker_name = f"{liker.first_name} {liker.last_name}"
                     
-                    # Get the apartment title or address
-                    apartment_title = apartment.title or f"Apartment at {apartment.street} {apartment.house_number}"
+                    # Get the apartment address as the title
+                    apartment_title = f"Apartment at {apartment.street}, {apartment.city.name}"
                     
                     # Send push notification to the apartment owner
                     FirebaseService.send_apartment_like_notification(
