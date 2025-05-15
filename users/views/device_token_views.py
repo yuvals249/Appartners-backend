@@ -28,15 +28,21 @@ class DeviceTokenView(APIView):
         - 500: Server error
     """
     def post(self, request):
+        # Add debug logging
+        logger.info(f"Device token registration request received: {request.data}")
+        
         # Extract user from token
         success, result = get_user_from_token(request)
         if not success:
+            logger.error(f"Failed to get user from token: {result}")
             return result  # Return the error response
         user_id = result
+        logger.info(f"User ID extracted: {user_id}")
         
         # Get request data
         token = request.data.get('token')
         device_type = request.data.get('device_type')
+        logger.info(f"Token: {token}, Device Type: {device_type}")
         
         # Validate input
         if not token:
@@ -53,6 +59,7 @@ class DeviceTokenView(APIView):
             
         try:
             # Create or update the device token
+            logger.info(f"Attempting to update or create device token for user_id: {user_id}")
             device_token, created = DeviceToken.objects.update_or_create(
                 token=token,
                 defaults={
@@ -61,10 +68,13 @@ class DeviceTokenView(APIView):
                     'is_active': True
                 }
             )
+            logger.info(f"Device token {'created' if created else 'updated'}: {device_token.id}")
             
             action = "registered" if created else "updated"
+            response_data = {"message": f"Device token {action} successfully", "token_id": device_token.id}
+            logger.info(f"Success response: {response_data}")
             return Response(
-                {"message": f"Device token {action} successfully"},
+                response_data,
                 status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
             )
             

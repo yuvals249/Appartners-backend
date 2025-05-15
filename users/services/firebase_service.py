@@ -1,6 +1,7 @@
 """
 Firebase Cloud Messaging service for sending push notifications.
 """
+import os
 import logging
 from firebase_admin import messaging
 from users.models import DeviceToken
@@ -27,60 +28,75 @@ class FirebaseService:
             bool: True if notification was sent successfully, False otherwise
         """
         try:
-            # Get all active device tokens for the user
+            # Get the first active device token for the user
             device_tokens = DeviceToken.objects.filter(
                 user_id=user_id, 
                 is_active=True
             ).values_list('token', flat=True)
+            logger.info(f"Device tokens for user_id {user_id}: {device_tokens}")
             
             if not device_tokens:
                 logger.warning(f"No active device tokens found for user_id {user_id}")
                 return False
-                
-            # Prepare the message
-            message = messaging.MulticastMessage(
-                tokens=list(device_tokens),
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                ),
-                data=data or {},
-                android=messaging.AndroidConfig(
-                    priority='high',
-                    notification=messaging.AndroidNotification(
-                        icon='notification_icon',
-                        color='#4CAF50',
-                        sound='default'
+            
+            # Just use the first token
+            token = device_tokens[0]
+            
+            try:
+                # Prepare the message for a single token
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=title,
+                        body=body,
                     ),
-                ),
-                apns=messaging.APNSConfig(
-                    payload=messaging.APNSPayload(
-                        aps=messaging.Aps(
-                            sound='default',
-                            badge=1,
-                            content_available=True
+                    token=token,
+                    data=data or {},
+                    android=messaging.AndroidConfig(
+                        priority='high',
+                        notification=messaging.AndroidNotification(
+                            icon='notification_icon',
+                            color='#4CAF50',
+                            sound='default'
+                        ),
+                    ),
+                    apns=messaging.APNSConfig(
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(
+                                sound='default',
+                                badge=1,
+                                content_available=True
+                            )
                         )
-                    )
-                ),
-            )
-            
-            # Send the message
-            response = messaging.send_multicast(message)
-            
-            # Log the response
-            logger.info(f"Sent notification to {len(device_tokens)} devices. Success: {response.success_count}, Failure: {response.failure_count}")
-            
-            # Handle failures if needed
-            if response.failure_count > 0:
-                for idx, resp in enumerate(response.responses):
-                    if not resp.success:
-                        logger.error(f"Failed to send notification to token {device_tokens[idx]}: {resp.exception}")
-                        
-                        # If token is invalid, mark it as inactive
-                        if resp.exception and 'invalid-registration-token' in str(resp.exception).lower():
-                            DeviceToken.objects.filter(token=device_tokens[idx]).update(is_active=False)
-            
-            return response.success_count > 0
+                    ),
+                    webpush=messaging.WebpushConfig(
+                        notification=messaging.WebpushNotification(
+                            icon='https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_96dp.png',
+                            badge='https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png',
+
+                            actions=[
+                                messaging.WebpushNotificationAction(
+                                    action='view',
+                                    title='View Details'
+                                )
+                            ],
+                            vibrate=[100, 50, 100],  # Vibration pattern
+                            require_interaction=True  # Makes notification stay until user interacts with it
+                        ),
+                    ),
+                )
+                
+                # Send the message to the token
+                response = messaging.send(message)
+                logger.info(f"Successfully sent message to token {token[:16]}...: {response}")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Failed to send notification to token {token[:16]}...: {str(e)}")
+                
+                # If token is invalid, mark it as inactive
+                if 'invalid-registration-token' in str(e).lower():
+                    DeviceToken.objects.filter(token=token).update(is_active=False)
+                return False
             
         except Exception as e:
             logger.error(f"Error sending push notification: {str(e)}")

@@ -56,7 +56,14 @@ def apply_price_filter(query, user_prefs):
     if user_prefs and hasattr(user_prefs, 'min_price') and hasattr(user_prefs, 'max_price'):
         min_price = user_prefs.min_price
         max_price = user_prefs.max_price
-        return query.filter(total_price__gte=min_price, total_price__lte=max_price)
+        
+        # Apply filters conditionally based on which values are provided
+        if min_price is not None and max_price is not None:
+            return query.filter(total_price__gte=min_price, total_price__lte=max_price)
+        elif min_price is not None:
+            return query.filter(total_price__gte=min_price)
+        elif max_price is not None:
+            return query.filter(total_price__lte=max_price)
     return query
 
 
@@ -87,7 +94,7 @@ def apply_area_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if user_prefs and hasattr(user_prefs, 'area') and user_prefs.area:
+    if user_prefs and hasattr(user_prefs, 'area') and user_prefs.area is not None and user_prefs.area != '':
         return query.filter(area=user_prefs.area)
     return query
 
@@ -119,9 +126,9 @@ def apply_roommates_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if user_prefs and hasattr(user_prefs, 'number_of_roommates') and user_prefs.number_of_roommates:
-        # If number_of_roommates is empty list, skip filtering
-        if not user_prefs.number_of_roommates:
+    if user_prefs and hasattr(user_prefs, 'number_of_roommates'):
+        # If number_of_roommates is None or empty list, skip filtering
+        if user_prefs.number_of_roommates is None or len(user_prefs.number_of_roommates) == 0:
             return query
             
         # Create a Q object for OR conditions
@@ -175,7 +182,7 @@ def apply_date_filter(query, user_prefs):
     Returns:
         Filtered query
     """
-    if user_prefs and hasattr(user_prefs, 'move_in_date') and user_prefs.move_in_date:
+    if user_prefs and hasattr(user_prefs, 'move_in_date') and user_prefs.move_in_date is not None:
         # Only show apartments that are available on or before the user's preferred move-in date
         # This ensures users don't see apartments that aren't available when they need them
         return query.filter(available_entry_date__lte=user_prefs.move_in_date)

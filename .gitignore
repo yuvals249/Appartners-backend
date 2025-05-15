@@ -26,3 +26,6 @@ create_user_details.sql
 
 #Documents
 docs/
+
+#Firebase
+firebase.json
