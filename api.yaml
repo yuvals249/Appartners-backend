@@ -151,6 +151,112 @@ paths:
                 properties:
                   error:
                     type: string
+  /authenticate/logout/:
+    post:
+      tags:
+      - Authenticate
+      summary: Logout user
+      description: Invalidates the user's refresh token, effectively logging them out.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  format: jwt
+                  description: "The refresh token to invalidate"
+        required: true
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        "400":
+          description: Bad request (missing token)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          description: Unauthorized (invalid token)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /authenticate/token/refresh/:
+    post:
+      tags:
+      - Authenticate
+      summary: Refresh authentication tokens
+      description: Generates new access and refresh tokens using a valid refresh token.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  format: jwt
+                  description: "The refresh token obtained during login or registration"
+        required: true
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  UserAuth:
+                    type: string
+                    format: jwt
+                    description: "New access token for API authentication (expires in 1 hour)"
+                  RefreshToken:
+                    type: string
+                    format: jwt
+                    description: "New refresh token for obtaining future access tokens (expires in 180 days)"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /users/user-details/:
     get:
       tags:
@@ -328,6 +434,68 @@ paths:
                     type: string
       security:
       - BearerAuth: []
+  /users/me/:
+    get:
+      tags:
+      - Users
+      summary: Get current user details
+      description: Returns the details of the currently authenticated user.
+      security:
+      - BearerAuth: []
+      responses:
+        "200":
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                    format: email
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  gender:
+                    type: string
+                  occupation:
+                    type: string
+                  birth_date:
+                    type: string
+                    format: date
+                  phone_number:
+                    type: string
+                  preferred_city:
+                    type: string
+                  about_me:
+                    type: string
+                  photo:
+                    type: string
+                    format: uri
+                  photo_url:
+                    type: string
+                    format: uri
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: User details not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /users/update-details/:
     put:
       tags:
@@ -1135,37 +1303,15 @@ components:
         message:
           type: string
           example: "User registered successfully"
-        user:
-          type: object
-          properties:
-            first_name:
-              type: string
-            last_name:
-              type: string
-            gender:
-              type: string
-            occupation:
-              type: string
-            birth_date:
-              type: string
-              format: date
-            phone_number:
-              type: string
-            preferred_city:
-              type: string
-            about_me:
-              type: string
-            photo:
-              type: string
-              format: uri
-              description: Reference to the stored photo in Cloudinary
-            photo_url:
-              type: string
-              format: uri
-              description: Full URL to the user's photo in Cloudinary
         UserAuth:
           type: string
           format: jwt
+          description: "Access token for API authentication (expires in 1 hour)"
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        RefreshToken:
+          type: string
+          format: jwt
+          description: "Refresh token for obtaining new access tokens (expires in 180 days)"
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       description: Schema for user registration response.
     QuestionnaireResponse:
@@ -1405,6 +1551,7 @@ components:
           type: array
           items:
             type: string
+            format: uri
         latitude:
           type: number
           format: float
@@ -1540,35 +1687,15 @@ components:
         message:
           type: string
           example: "User logged in successfully"
-        user:
-          type: object
-          properties:
-            email:
-              type: string
-              format: email
-            first_name:
-              type: string
-            last_name:
-              type: string
-            gender:
-              type: string
-            occupation:
-              type: string
-            birth_date:
-              type: string
-              format: date
-            phone_number:
-              type: string
-            preferred_city:
-              type: string
-            about_me:
-              type: string
-            photo:
-              type: string
-              format: uri
         UserAuth:
           type: string
           format: jwt
+          description: "Access token for API authentication (expires in 1 hour)"
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        RefreshToken:
+          type: string
+          format: jwt
+          description: "Refresh token for obtaining new access tokens (expires in 180 days)"
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       description: Schema for user login response.
     City:
