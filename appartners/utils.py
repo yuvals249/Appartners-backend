@@ -2,10 +2,10 @@ import jwt
 import uuid
 from datetime import datetime, timedelta
 from django.conf import settings
-from rest_framework.response import Response
-from rest_framework import status
-from jwt import ExpiredSignatureError, InvalidTokenError
+from jwt import InvalidTokenError
 import logging
+from users.models import BlacklistedToken
+
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +84,7 @@ def decode_jwt(jwt_key, check_blacklist=True):
     jti = payload.get('jti')
     
     # Check if token is blacklisted
-    if check_blacklist and jti:
-        from users.models import BlacklistedToken
-        
+    if check_blacklist and jti:        
         try:
             if BlacklistedToken.objects.filter(token_jti=jti).exists():
                 logger.warning(f"Attempt to use blacklisted token: {jti}")
