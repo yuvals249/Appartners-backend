@@ -5,7 +5,6 @@ from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from appartners.utils import get_user_from_token
 
 from users.models import UserDetails
 from users.serializers import UserDetailsSerializer
@@ -19,15 +18,12 @@ class UserDetailsList(APIView):
     Requires authentication and staff privileges.
     """
     def get(self, request):
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
+        user_id = request.user_from_token
         
         try:
-            # Check if the user is staff
             from django.contrib.auth.models import User
             user = User.objects.get(id=user_id)
             

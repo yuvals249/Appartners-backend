@@ -3,16 +3,14 @@ Apartment like-related views for the apartments app.
 """
 import logging
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from appartners.utils import get_user_from_token
 from apartments.models import Apartment, ApartmentUserLike
 from users.models.user_details import UserDetails
-from users.serializers.user_basic import UserBasicSerializer
+from users.models.user_like import UserUserLike
 from users.serializers.api_user_details import ApiUserDetailsSerializer
 from users.services.firebase_service import FirebaseService
 
@@ -26,14 +24,11 @@ class ApartmentLikeView(APIView):
     """
 
     def post(self, request):
-        # Extract user from token using centralized function
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
+        user_id = request.user_from_token
 
-        # Get the apartment ID and like field from the request data
         apartment_id = request.data.get('apartment_id')
         like = request.data.get('like')  # Boolean value
 
@@ -100,15 +95,13 @@ class ApartmentLikersView(APIView):
     """
     
     def get(self, request):
-        # Extract user from token using centralized function
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
+        user_id = request.user_from_token
         
+            
         try:
-            # Find the user's apartment
             user_apartment = Apartment.objects.filter(user_id=user_id).first()
             
             if not user_apartment:
@@ -123,16 +116,24 @@ class ApartmentLikersView(APIView):
                 like=True
             ).values_list('user_id', flat=True)
             
-            logger.info(f"Found {len(likers_ids)} likers for apartment {user_apartment.id}")
+            # Get all user-to-user likes/dislikes
+            user_likes = UserUserLike.objects.filter(
+                user_id=user_id,
+                target_user_id__in=likers_ids
+            )
+            
+            # Get all users that have already been liked or disliked
+            responded_users = {ul.target_user_id for ul in user_likes}
+            
+            # Filter out users that have already been liked or disliked
+            likers_ids = [uid for uid in likers_ids if uid not in responded_users]
             
             # Get the user details for these users
             user_details = UserDetails.objects.filter(user_id__in=likers_ids)
             
-            logger.info(f"Found {user_details.count()} user details records")
-            
             if not user_details.exists():
                 return Response(
-                    {"message": "No users have liked your apartment yet"},
+                    {"message": "No new users have liked your apartment"},
                     status=status.HTTP_200_OK
                 )
             
@@ -140,10 +141,8 @@ class ApartmentLikersView(APIView):
                 # Use the API-compliant serializer that matches the full specification
                 serializer = ApiUserDetailsSerializer(user_details, many=True)
                 data = serializer.data
-                logger.info(f"Successfully serialized {len(data)} user details")
                 return Response(data, status=status.HTTP_200_OK)
             except Exception as serializer_error:
-                logger.error(f"Serializer error: {str(serializer_error)}")
                 return Response(
                     {"error": f"Error serializing user data: {str(serializer_error)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -7,8 +7,6 @@ from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from appartners.utils import get_user_from_token
 from users.models.questionnaire import QuestionnaireTemplate, UserResponse
 from users.serializers import (
     QuestionnaireTemplateSerializer,
@@ -64,12 +62,12 @@ class UserResponseView(APIView):
     """
     def post(self, request):
         try:
-            # Get the user from the token
-            success, result = get_user_from_token(request)
-            if not success:
-                return result  # Return the error response
+            # Return error if authentication failed
+            if request.token_error:
+                return request.token_error
                 
-            user_id = result
+            # Get user_id from the request (set by middleware)
+            user_id = request.user_from_token
             user = User.objects.get(id=user_id)
             
             # Delete existing responses for this user
@@ -101,24 +99,18 @@ class UserResponseView(APIView):
     
     def get(self, request):
         try:
-            # Get the user from the token
-            success, result = get_user_from_token(request)
-            if not success:
-                return result  # Return the error response
+            # Return error if authentication failed
+            if request.token_error:
+                return request.token_error
                 
-            user_id = result
+            # Get user_id from the request (set by middleware)
+            user_id = request.user_from_token
             user = User.objects.get(id=user_id)
             
             # Get all responses for the user, ordered by question order
             user_responses = UserResponse.objects.filter(user=user).select_related('question').order_by('question__order')
             
-            if not user_responses.exists():
-                return Response(
-                    {"errors": "No responses found for this user"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Create a detailed response with question details
+            # Create a detailed response with question details (empty list if no responses)
             response_data = []
             for response in user_responses:
                 question_serializer = QuestionSerializer(response.question)
@@ -129,10 +121,7 @@ class UserResponseView(APIView):
                     'created_at': response.created_at
                 })
             
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK
-            )
+            return Response(response_data, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response(
                 {"errors": "User not found"},

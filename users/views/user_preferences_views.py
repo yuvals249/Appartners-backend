@@ -2,7 +2,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.exceptions import ValidationError
-from appartners.utils import get_user_from_token
 
 from users.models import UserPreferences, UserPreferencesFeatures
 from users.serializers import UserPreferencesGetSerializer
@@ -14,11 +13,12 @@ class UserPreferencesView(APIView):
     """
 
     def get(self, request):
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
-        user_id = result
+        # Return error if authentication failed
+        if request.token_error:
+            return request.token_error
+            
+        # Get user_id from the request (set by middleware)
+        user_id = request.user_from_token
         
         try:
             # Get the user's preferences
@@ -49,11 +49,12 @@ class UserPreferencesView(APIView):
             )
 
     def post(self, request):
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
-        user_id = result
+        # Return error if authentication failed
+        if request.token_error:
+            return request.token_error
+            
+        # Get user_id from the request (set by middleware)
+        user_id = request.user_from_token
 
         # Extract and clean data
         data = request.data.copy()

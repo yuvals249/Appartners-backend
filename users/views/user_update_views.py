@@ -3,13 +3,14 @@ Views for updating user information.
 """
 import logging
 from django.contrib.auth.models import User
-from django.db import DatabaseError, transaction
+from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+import cloudinary.uploader
 
-from appartners.utils import get_user_from_token
+# Authentication now handled by middleware
 from users.models import UserDetails
 from users.serializers.user_details import UserDetailsSerializer
 
@@ -32,12 +33,10 @@ class UpdatePasswordView(APIView):
         - 500: Server error
     """
     def put(self, request):
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
-        user_id = result
-        
+        if request.token_error:
+            return request.token_error
+            
+        user_id = request.user_from_token
         # Get request data
         current_password = request.data.get('current_password')
         new_password = request.data.get('new_password')
@@ -109,12 +108,30 @@ class UpdateUserDetailsView(APIView):
     """
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     
+    def _delete_cloudinary_photo(self, public_id):
+        """
+        Helper method to delete a photo from Cloudinary.
+        
+        Args:
+            public_id (str): The public ID of the photo to delete
+            
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        try:
+            cloudinary.uploader.destroy(public_id)
+            logging.info(f"Deleted photo with public_id: {public_id}")
+            return True
+        except Exception as e:
+            # Log the error but don't fail the request
+            logging.error(f"Failed to delete photo from Cloudinary: {str(e)}")
+            return False
+    
     def put(self, request):
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
-        user_id = result
+        if request.token_error:
+            return request.token_error
+            
+        user_id = request.user_from_token
         
         try:
             # Get the user and user details
@@ -136,6 +153,12 @@ class UpdateUserDetailsView(APIView):
                 
             if 'about_me' in request.data:
                 fields_to_update['about_me'] = request.data.get('about_me')
+            
+            # Store old photo public_id if it exists and we're uploading a new photo
+            old_photo_public_id = None
+            if 'photo' in request.FILES and user_details.photo:
+                # Get the public ID from the CloudinaryField
+                old_photo_public_id = user_details.photo.public_id
                 
             # Handle photo upload
             if 'photo' in request.FILES:
@@ -153,6 +176,10 @@ class UpdateUserDetailsView(APIView):
                 for field, value in fields_to_update.items():
                     setattr(user_details, field, value)
                 user_details.save()
+                
+                # Delete old photo from Cloudinary if we uploaded a new one
+                if old_photo_public_id:
+                    self._delete_cloudinary_photo(old_photo_public_id)
                 
             # Return updated user details
             serializer = UserDetailsSerializer(user_details)

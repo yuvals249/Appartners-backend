@@ -8,7 +8,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from apartments.serializers.apartment import ApartmentSerializer
 from apartments.models.photo import ApartmentPhoto
-from appartners.utils import get_user_from_token
 from apartments.utils.location import add_random_offset, get_area_from_coordinates, truncate_coordinates
 from apartments.models import Feature, City
 from apartments.serializers.feature import FeatureSerializer
@@ -19,17 +18,17 @@ class ApartmentCreateView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):
-        # Extract user and validate photos
-        success, result = get_user_from_token(request)
-        if not success:
-            return result
+        if request.token_error:
+            return request.token_error
+            
+        user_id = request.user_from_token
         
         photos = request.FILES.getlist('photos')
         if not photos:
             return Response({"error": "At least one photo is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Prepare request data
-        request_data = self._prepare_request_data(request, result)
+        request_data = self._prepare_request_data(request, user_id)
         
         # Validate data
         serializer = ApartmentSerializer(data=request_data, partial=True)
