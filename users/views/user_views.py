@@ -10,6 +10,7 @@ from users.models import UserDetails
 from users.serializers import UserDetailsSerializer
 from apartments.models import Feature, City
 from apartments.serializers import CitySerializer, FeatureSerializer
+from django.contrib.auth.models import User
 
 
 class UserDetailsList(APIView):
@@ -24,7 +25,6 @@ class UserDetailsList(APIView):
         user_id = request.user_from_token
         
         try:
-            from django.contrib.auth.models import User
             user = User.objects.get(id=user_id)
             
             if not user.is_staff:
@@ -49,6 +49,56 @@ class UserDetailsList(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CurrentUserView(APIView):
+    """
+    API endpoint for retrieving the current authenticated user's details.
+    
+    Endpoint: GET /api/v1/users/me/
+    
+    Returns:
+        - 200: User details
+        - 401: Unauthorized (invalid or missing token)
+        - 404: User details not found
+    """
+    def get(self, request):
+        # Check if there was a token error
+        if request.token_error:
+            return request.token_error
+            
+        # Get user ID from the token
+        user_id = request.user_from_token
+        
+        try:
+            # Get the user from the database
+            user = User.objects.get(id=user_id)
+            
+            # Fetch the user's details from the UserDetails model
+            try:
+                user_details = UserDetails.objects.get(user=user)
+            except UserDetails.DoesNotExist:
+                return Response(
+                    {"error": "User details not found."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Serialize the user details
+            serializer = UserDetailsSerializer(user_details)
+            
+            # Return the user details
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving current user: {str(e)}")
             return Response(
                 {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

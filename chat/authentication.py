@@ -53,8 +53,13 @@ class JWTAuthentication(authentication.BaseAuthentication):
             logger.info(f"Attempting to authenticate with token: {token[:10]}...")
             
             # Decode the JWT token to get user information
-            user_id, email = decode_jwt(token)
-            logger.info(f"Decoded user_id: {user_id}, email: {email}")
+            user_id, email, token_type, jti = decode_jwt(token)
+            logger.info(f"Decoded user_id: {user_id}, email: {email}, token_type: {token_type}, jti: {jti}")
+            
+            # Verify this is an access token (not a refresh token)
+            if token_type != 'access':
+                logger.warning(f"Authentication attempt with non-access token type: {token_type}")
+                raise exceptions.AuthenticationFailed('Invalid token type')
             
             # Retrieve the user from the database
             user = User.objects.get(id=user_id)

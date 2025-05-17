@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
 
-from appartners.utils import generate_jwt
+from appartners.utils import generate_auth_tokens
 from users.models import UserDetails
 from users.serializers import UserDetailsSerializer, UserRegistrationSerializer
 from users.utils.validators import validate_and_normalize_email, validate_and_normalize_phone
@@ -132,25 +132,13 @@ class LoginView(APIView):
         user.last_login = timezone.now()
         user.save()
 
-        # Fetch the user's details from the UserDetails model
-        try:
-            user_details = UserDetails.objects.get(user=user)
-        except UserDetails.DoesNotExist:
-            return Response(
-                {"error": "User details not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # Generate both access and refresh tokens
+        tokens = generate_auth_tokens(user)
 
-        # Serialize the user details
-        serializer = UserDetailsSerializer(user_details)
-
-        token = generate_jwt(user)
-
-        # Include the token in the response
         return Response(
             {
-                "user": serializer.data,
-                "UserAuth": token
+                "UserAuth": tokens['access'],
+                "RefreshToken": tokens['refresh']
             },
             status=status.HTTP_200_OK)
 
@@ -211,17 +199,14 @@ class RegisterView(APIView):
             user = result['user']
             user_details = result['user_details']
             
-            # Generate JWT token
-            token = generate_jwt(user)
-            
-            # Serialize user details for response
-            user_details_serializer = UserDetailsSerializer(user_details)
+            # Generate both access and refresh tokens
+            tokens = generate_auth_tokens(user)
             
             return Response(
                 {
                     "message": "User registered successfully",
-                    "user": user_details_serializer.data,
-                    "UserAuth": token
+                    "UserAuth": tokens['access'],
+                    "RefreshToken": tokens['refresh']
                 },
                 status=status.HTTP_201_CREATED
             )
