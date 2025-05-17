@@ -3,12 +3,13 @@ Logout views for the users app.
 Handles user logout functionality by invalidating tokens.
 """
 import logging
+import jwt
 from datetime import datetime
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from jwt import InvalidTokenError
-import jwt
+
 from appartners.utils import decode_jwt
 from users.models import BlacklistedToken
 
@@ -58,12 +59,17 @@ class LogoutView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Add the token to the blacklist
-            BlacklistedToken.objects.create(
-                token_jti=jti,
-                user_id=user_id,
-                expires_at=datetime.fromtimestamp(exp) if exp else None
-            )
+            # Check if token is already blacklisted
+            if BlacklistedToken.objects.filter(token_jti=jti).exists():
+                # Token already blacklisted, just return success
+                logger.info(f"Token {jti[:10]}... was already blacklisted")
+            else:
+                # Add the token to the blacklist
+                BlacklistedToken.objects.create(
+                    token_jti=jti,
+                    user_id=user_id,
+                    expires_at=datetime.fromtimestamp(exp) if exp else None
+                )
             
             logger.info(f"User {user_id} logged out successfully. Token {jti[:10]}... blacklisted.")
             

@@ -7,8 +7,8 @@ from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from appartners.utils import decode_jwt, generate_auth_tokens
+from users.models import BlacklistedToken
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,18 @@ class TokenRefreshView(APIView):
             )
         
         try:
-            # Decode the refresh token
-            user_id, email, token_type, jti = decode_jwt(refresh_token)
+            # First decode without blacklist check to get the jti
+            user_id, email, token_type, jti = decode_jwt(refresh_token, check_blacklist=False)
+            
+            # Check if token is blacklisted
+            if BlacklistedToken.objects.filter(token_jti=jti).exists():
+                logger.warning(f"Attempt to use blacklisted token: {jti[:10]}...")
+                return Response(
+                    {"error": "Token has been invalidated"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # At this point, we know the token is valid and not blacklisted
             
             # Verify this is a refresh token
             if token_type != 'refresh':
