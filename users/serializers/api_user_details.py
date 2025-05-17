@@ -12,7 +12,7 @@ class ApiUserDetailsSerializer(serializers.ModelSerializer):
     """
     id = serializers.IntegerField(source='user.id')
     email = serializers.EmailField(source='user.email')
-    photo = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
     preferred_city = serializers.SerializerMethodField()
     
     class Meta:
@@ -20,10 +20,10 @@ class ApiUserDetailsSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'gender',
             'occupation', 'birth_date', 'phone_number', 
-            'preferred_city', 'about_me', 'photo'
+            'preferred_city', 'about_me', 'photo_url'
         ]
     
-    def get_photo(self, obj):
+    def get_photo_url(self, obj):
         try:
             if obj.photo:
                 return obj.photo.url

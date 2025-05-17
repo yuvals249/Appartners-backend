@@ -9,7 +9,6 @@ from rest_framework import status
 
 from apartments.serializers.apartment import ApartmentSerializer
 from apartments.utils.recommendation import get_recommended_apartments
-from appartners.utils import get_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +20,11 @@ class ApartmentRecommendationView(APIView):
     """
     
     def get(self, request):
-        # Extract user from token using centralized function
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
+        user_id = request.user_from_token
         
-        # Get the limit parameter from the query string
         try:
             limit = int(request.query_params.get('limit', 10))
             if limit <= 0:

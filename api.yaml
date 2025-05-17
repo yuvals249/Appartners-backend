@@ -356,7 +356,7 @@ paths:
                 photo:
                   type: string
                   format: binary
-                  description: User's profile photo
+                  description: User's profile photo (will be returned as photo_url in responses)
       responses:
         "200":
           description: User details updated successfully
@@ -504,6 +504,67 @@ paths:
                     type: string
       security:
       - BearerAuth: []
+  /users/like/:
+    post:
+      tags:
+      - Users
+      summary: Like or dislike a user who liked your apartment
+      description: Record your preference (like or dislike) for a user who has liked your apartment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_user_id:
+                  type: integer
+                  description: ID of the user to like or dislike
+                like:
+                  type: boolean
+                  description: True for like, false for dislike
+              required:
+                - target_user_id
+                - like
+      responses:
+        "200":
+          description: Like/dislike recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: User not found or target user hasn't liked your apartment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+      security:
+      - UserAuth: []    
   /questionnaire/:
     get:
       tags:
@@ -1556,9 +1617,10 @@ components:
           type: string
         about_me:
           type: string
-        photo:
+        photo_url:
           type: string
           format: uri
+          description: URL to the user's profile photo
     UserPreferences:
       type: object
       properties:

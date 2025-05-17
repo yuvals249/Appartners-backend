@@ -7,7 +7,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from appartners.utils import get_user_from_token
 from users.models import DeviceToken
 
 logger = logging.getLogger(__name__)
@@ -28,21 +27,14 @@ class DeviceTokenView(APIView):
         - 500: Server error
     """
     def post(self, request):
-        # Add debug logging
-        logger.info(f"Device token registration request received: {request.data}")
-        
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            logger.error(f"Failed to get user from token: {result}")
-            return result  # Return the error response
-        user_id = result
-        logger.info(f"User ID extracted: {user_id}")
+        if request.token_error:
+            return request.token_error
+            
+        user_id = request.user_from_token
         
         # Get request data
         token = request.data.get('token')
         device_type = request.data.get('device_type')
-        logger.info(f"Token: {token}, Device Type: {device_type}")
         
         # Validate input
         if not token:
@@ -95,11 +87,10 @@ class DeviceTokenView(APIView):
         """
         Delete a device token to stop receiving notifications.
         """
-        # Extract user from token
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
-        user_id = result
+        if request.token_error:
+            return request.token_error
+            
+        user_id = request.user_from_token
         
         # Get request data
         token = request.data.get('token')

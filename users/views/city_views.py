@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apartments.models.city import City
-from apartments.models.apartment import Apartment
 from apartments.serializers.city import CitySerializer
 
 

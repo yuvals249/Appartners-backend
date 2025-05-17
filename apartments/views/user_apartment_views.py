@@ -10,7 +10,6 @@ from rest_framework import status
 
 from apartments.models import Apartment, ApartmentUserLike
 from apartments.serializers.apartment import ApartmentSerializer
-from appartners.utils import get_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -21,22 +20,16 @@ class UserApartmentsView(APIView):
     """
     
     def get(self, request):
-        # Add logging for request headers
-        logger.info(f"Request headers: {request.headers}")
-        
-        # Extract user from token using centralized function
-        success, result = get_user_from_token(request)
-        if not success:
-            logger.error(f"Authentication failed: {result.data if hasattr(result, 'data') else 'No error data'}")
-            return result  # Return the error response
+        # Return error if authentication failed
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
-        logger.info(f"Authenticated user_id: {user_id}")
+        # Get user_id from the request (set by middleware)
+        user_id = request.user_from_token
         
         try:
             # Get all apartments created by this user
             apartments = Apartment.objects.filter(user_id=user_id).order_by('-created_at')
-            logger.info(f"Found {apartments.count()} apartments for user {user_id}")
             
             if not apartments.exists():
                 return Response(
@@ -70,12 +63,10 @@ class UserLikedApartmentsView(APIView):
     """
     
     def get(self, request):
-        # Extract user from token using centralized function
-        success, result = get_user_from_token(request)
-        if not success:
-            return result  # Return the error response
+        if request.token_error:
+            return request.token_error
             
-        user_id = result
+        user_id = request.user_from_token
         
         try:
             # Get all apartment IDs that the user has liked

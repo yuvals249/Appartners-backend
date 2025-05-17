@@ -7,6 +7,7 @@ from .views.city_views import CityPayloadView
 from .views.questionnaire_views import QuestionnaireView, UserResponseView
 from .views.user_update_views import UpdatePasswordView, UpdateUserDetailsView
 from .views.device_token_views import DeviceTokenView
+from .views.user_like_views import UserLikeView
 
 
 users_urlpatterns = [
@@ -16,6 +17,7 @@ users_urlpatterns = [
     path('update-password/', UpdatePasswordView.as_view(), name='update-password'),
     path('update-details/', UpdateUserDetailsView.as_view(), name='update-details'),
     path('device-token/', DeviceTokenView.as_view(), name='device-token'),
+    path('like/', UserLikeView.as_view(), name='user-like'),
 ]
 
 auth_urlpatterns = [
