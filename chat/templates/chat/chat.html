@@ -267,9 +267,42 @@
                     console.log(`New message notification received in room ${data.chat_id} from user ${data.sender_id}`);
                     // Reload rooms to update the room list with the new message
                     loadRooms();
+                } else if (data.type === 'chat.user.entered') {
+                    // Handle when a user enters the chat room
+                    console.log(`User ${data.user_id} entered room ${data.room_id}`);
+                    
+                    // First, update the room list to reflect any changes
+                    loadRooms();
+                    
+                    // Then, if we're in the room where the user entered, update message statuses
+                    if (currentRoom && currentRoom.id === data.room_id) {
+                        const otherParticipant = currentRoom.participants.find(p => p.id === data.user_id);
+                        if (otherParticipant) {
+                            // Update all messages in the current room to read status
+                            const messageElements = document.querySelectorAll('.message.sent');
+                            let updatedAny = false;
+                            
+                            messageElements.forEach(msg => {
+                                const checkmarks = msg.querySelector('.checkmarks');
+                                if (checkmarks && checkmarks.classList.contains('delivered')) {
+                                    checkmarks.classList.remove('delivered');
+                                    checkmarks.classList.add('read');
+                                    updatedAny = true;
+                                }
+                            });
+                            
+                            // If we updated any messages, reload the room to ensure consistency
+                            if (updatedAny) {
+                                loadRooms();
+                            }
+                        }
+                    } else if (data.type === 'user_presence') {
+                        // Handle user presence (online/offline) status
+                        handleUserPresence(data.user_id, data.is_online, data.room_id);
+                    }
                 } else if (data.type === 'user_presence') {
                     // Handle user presence (online/offline) status
-                    handleUserPresence(data.user_id, data.is_online);
+                    handleUserPresence(data.user_id, data.is_online, data.room_id);
                 }
             };
 
@@ -316,7 +349,7 @@
                     handleTypingIndicator(data.user_id, data.is_typing);
                 } else if (data.type === 'user_presence') {
                     // Handle user presence (online/offline) status
-                    handleUserPresence(data.user_id, data.is_online);
+                    handleUserPresence(data.user_id, data.is_online, data.room_id);
                 }
             };
 
@@ -821,9 +854,45 @@
             }
         });
 
-        // Add this function to prevent JS errors
-        function handleUserPresence(userId, isOnline) {
-            // No-op for now
+        /**
+         * Handles user presence (online/offline) status
+         * @param {number} userId - ID of the user
+         * @param {boolean} isOnline - Whether the user is online
+         */
+        function handleUserPresence(userId, isOnline, roomId) {
+            // Get the current room's participants
+            if (!currentRoom || !currentRoom.participants) return;
+            
+            // Find the user in the current room's participants
+            const user = currentRoom.participants.find(p => p.id === userId);
+            if (!user) return;
+
+            // Only log when it's not the current user and it's the current room
+            if (userId !== currentUser.id && currentRoom.id === roomId) {
+                if (isOnline) {
+                    console.log(`${user.first_name} ${user.last_name} has joined the chat in room ${roomId}`);
+                    // When user joins, update all sent messages to read status
+                    const messagesDiv = document.getElementById('messages');
+                    const messageElements = messagesDiv.querySelectorAll('.message.sent');
+                    let updatedAny = false;
+                    
+                    messageElements.forEach(msg => {
+                        const checkmarks = msg.querySelector('.checkmarks');
+                        if (checkmarks && checkmarks.classList.contains('delivered')) {
+                            checkmarks.classList.remove('delivered');
+                            checkmarks.classList.add('read');
+                            updatedAny = true;
+                        }
+                    });
+                    
+                    // If we updated any messages, reload the room to ensure consistency
+                    if (updatedAny) {
+                        loadRooms();
+                    }
+                } else {
+                    console.log(`${user.first_name} ${user.last_name} has left the chat in room ${roomId}`);
+                }
+            }
         }
     </script>
 </body>
