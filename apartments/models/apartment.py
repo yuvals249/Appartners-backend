@@ -49,6 +49,10 @@ class Apartment(models.Model):
 
         if self.number_of_rooms <= 0 or self.number_of_rooms > 10:
             raise ValidationError({'number_of_rooms': 'Must be a valid integer'})
+            
+        # Remove trailing apostrophe from area names if it exists
+        if self.area and self.area.endswith("'"):
+            self.area = self.area[:-1]
 
         if self.number_of_available_rooms <= 0:
             raise ValidationError({'number_of_available_rooms': 'Must be a positive integer'})

@@ -8,7 +8,8 @@ from users.serializers.user_details import UserDetailsSerializer
 
 
 class ApartmentSerializer(serializers.ModelSerializer):
-    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())  # City ID validation
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), write_only=True)  # City ID validation
+    city_details = serializers.SerializerMethodField()  # Return city ID and name
     features = serializers.PrimaryKeyRelatedField(
         queryset=Feature.objects.all(), many=True, write_only=True, required=False  # For input
     )
@@ -23,12 +24,24 @@ class ApartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Apartment
         fields = [
-            'id', 'city', 'street', 'type', 'floor', 'number_of_rooms',
+            'id', 'city', 'city_details', 'street', 'type', 'floor', 'number_of_rooms',
             'number_of_available_rooms', 'total_price', 'available_entry_date',
             'about', 'features', 'feature_details', 'user_id', 'created_at', 'photos', 'photo_urls',
             'latitude', 'longitude', 'area', 'is_yad2', 'user_details'
         ]
 
+    def get_city_details(self, obj):
+        """
+        Get city ID and name
+        """
+        if obj.city:
+            return {
+                "id": obj.city.id,
+                "name": obj.city.name,
+                "hebrew_name": obj.city.hebrew_name
+            }
+        return None
+        
     def get_feature_details(self, obj):
         """
         Get features through the intermediate model
