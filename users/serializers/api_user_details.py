@@ -1,6 +1,7 @@
 from rest_framework import serializers
 import logging
 from users.models.user_details import UserDetails
+from apartments.models import City
 
 # Get logger
 logger = logging.getLogger(__name__)
@@ -35,7 +36,19 @@ class ApiUserDetailsSerializer(serializers.ModelSerializer):
     def get_preferred_city(self, obj):
         try:
             if obj.preferred_city:
-                return str(obj.preferred_city.id)
+                try:
+                    # Try to get the city object by name
+                    city = City.objects.filter(name=obj.preferred_city).first()
+                    if city:
+                        return {
+                            "id": str(city.id),
+                            "name": city.name
+                        }
+                except Exception as e:
+                    logger.error(f"Error getting city object: {str(e)}")
+                
+                # If we couldn't get a city object, return the string value
+                return obj.preferred_city
             return None
         except Exception as e:
             logger.error(f"Error getting preferred city: {str(e)}")

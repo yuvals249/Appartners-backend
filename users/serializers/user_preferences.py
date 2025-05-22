@@ -5,7 +5,7 @@ from apartments.models import Feature, Apartment
 
 
 class UserPreferencesGetSerializer(serializers.ModelSerializer):
-    city = serializers.CharField(source="city.name", read_only=True)  # Return the city name
+    city = serializers.SerializerMethodField()  # Return city ID and name
     features = serializers.SerializerMethodField()  # Get features using a method
     price_range = serializers.SerializerMethodField()
 
@@ -27,8 +27,16 @@ class UserPreferencesGetSerializer(serializers.ModelSerializer):
             "max": obj.max_price
         }
     
+    def get_city(self, obj):
+        if obj.city:
+            return {
+                "id": obj.city.id,
+                "name": obj.city.name
+            }
+        return None
+    
     def get_features(self, obj):
         # Get all features associated with this user preference
         feature_ids = obj.user_preference_features.values_list('feature_id', flat=True)
         features = Feature.objects.filter(id__in=feature_ids)
-        return [feature.name for feature in features]
+        return [{"id": feature.id, "name": feature.name} for feature in features]
