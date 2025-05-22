@@ -6,6 +6,8 @@ from django.utils import timezone
 from django.contrib.auth.models import User, AnonymousUser
 from .models import ChatRoom, Message
 from firebase_admin import firestore
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 logger = logging.getLogger('chat')
 
@@ -112,6 +114,23 @@ class UserConsumer(AsyncWebsocketConsumer):
 
         logger.info(f"Forwarded room update to user {self.user_id}")
 
+    async def chat_message_notification(self, event):
+        """
+        Called when a new message notification is received from the channel layer.
+
+        Forwards the notification to the WebSocket.
+        """
+        # Send notification to WebSocket
+        await self.send(text_data=json.dumps({
+            'type': 'chat.message.notification',
+            'chat_id': event['chat_id'],
+            'sender_id': event['sender_id'],
+            'recipient_ids': event['recipient_ids'],
+            'message': event['message']
+        }))
+
+        logger.info(f"Forwarded message notification for chat {event['chat_id']} to user {self.user_id}")
+
     @database_sync_to_async
     def update_user_presence(self):
         """
@@ -193,6 +212,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Get other participants in the room
         other_participants = await self.get_other_room_participants(self.room_id, self.user.id)
 
+        # Mark all messages as read for the other participant
+        for participant_id in other_participants:
+            # Get all unread messages from this participant to the current user
+            unread_messages = await self.get_unread_messages(self.room_id, participant_id, self.user.id)
+            if unread_messages:
+                # Mark messages as read
+                await self.mark_messages_as_read([msg.id for msg in unread_messages], self.user.id)
+                # Broadcast read receipt to the other participant
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'read_receipt',
+                        'message_ids': [msg.id for msg in unread_messages],
+                        'reader_id': self.user.id,
+                        'room_id': self.room_id
+                    }
+                )
+
         # Broadcast user presence to other participants if they are connected
         for participant_id in other_participants:
             if room_id_str in connected_users and participant_id in connected_users[room_id_str]:
@@ -202,7 +239,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     {
                         'type': 'user_presence',
                         'user_id': self.user.id,
-                        'is_online': True
+                        'is_online': True,
+                        'room_id': self.room_id
                     }
                 )
 
@@ -238,7 +276,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         {
                             'type': 'user_presence',
                             'user_id': self.user.id,
-                            'is_online': False
+                            'is_online': False,
+                            'room_id': self.room_id
                         }
                     )
 
@@ -410,8 +449,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'user_presence',
             'user_id': event['user_id'],
-            'is_online': event['is_online']
+            'is_online': event['is_online'],
+            'room_id': event['room_id']
         }))
+
+    async def chat_message_notification(self, event):
+        """
+        Called when a new message notification is received from the channel layer.
+
+        Forwards the notification to the WebSocket.
+        """
+        # Send notification to WebSocket
+        await self.send(text_data=json.dumps({
+            'type': 'chat.message.notification',
+            'chat_id': event['chat_id'],
+            'sender_id': event['sender_id'],
+            'recipient_ids': event['recipient_ids'],
+            'message': event['message']
+        }))
+
+        logger.info(f"Forwarded message notification for chat {event['chat_id']} to user {self.user.id}")
 
     @database_sync_to_async
     def user_has_access_to_room(self, room_id, user_id):
@@ -495,6 +552,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if mark_as_read:
             logger.info(f"Broadcasting read receipt for message {message.id}")
             # Note: This will be handled by the caller (receive method)
+
+        # Send notification to all participants except the sender
+        for participant_id in other_participants:
+            user_group_name = f'user_{participant_id}'
+            try:
+                async_to_sync(self.channel_layer.group_send)(
+                    user_group_name,
+                    {
+                        'type': 'chat.message.notification',
+                        'chat_id': str(room_id),
+                        'sender_id': str(sender_id),
+                        'recipient_ids': [str(pid) for pid in other_participants if pid != participant_id],
+                        'message': 'New message received'
+                    }
+                )
+                logger.info(f"Sent message notification to user {participant_id}")
+            except Exception as e:
+                logger.error(f"Error sending message notification to user {participant_id}: {str(e)}")
 
         return message
 
@@ -593,3 +668,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error getting other participant ID: {str(e)}")
             return None
+
+    @database_sync_to_async
+    def get_unread_messages(self, room_id, sender_id, recipient_id):
+        """
+        Gets all unread messages from a specific sender to a specific recipient in a room.
+        
+        Args:
+            room_id: ID of the room
+            sender_id: ID of the message sender
+            recipient_id: ID of the message recipient
+            
+        Returns:
+            list: List of unread Message objects
+        """
+        try:
+            return list(Message.objects.filter(
+                room_id=room_id,
+                sender_id=sender_id,
+                read_at__isnull=True
+            ).order_by('timestamp'))
+        except Exception as e:
+            logger.error(f"Error getting unread messages: {str(e)}")
+            return []

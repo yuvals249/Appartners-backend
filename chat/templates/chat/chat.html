@@ -165,7 +165,7 @@
 
     <script>
         // WebSocket connection
-        let chatSocket = null;
+        let chatSockets = {}; // Store WebSocket connections for all active rooms
         let userSocket = null;
 
         // Global state variables
@@ -184,24 +184,28 @@
             try {
                 const response = await fetch('http://localhost:8000/api/v1/authenticate/login/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
                 const data = await response.json();
                 if (data.UserAuth) {
                     currentToken = data.UserAuth;
-                    currentUser = data.user;
+                    // Always fetch the user after login
+                    const userResp = await fetch('http://localhost:8000/api/v1/users/me/', {
+                        headers: { 'Authorization': `Bearer ${currentToken}` }
+                    });
+                    currentUser = await userResp.json();
+                    if (!currentUser.id) {
+                        alert('Login failed');
+                        return;
+                    }
                     document.getElementById('loginSection').classList.add('hidden');
                     document.getElementById('chatSection').classList.remove('hidden');
-
-                    // Initial load of rooms
                     await loadRooms();
-
-                    // Set up WebSocket connection for real-time updates
                     setupWebSocket();
+                } else {
+                    alert('Login failed');
                 }
             } catch (error) {
                 console.error('Login failed:', error);
@@ -232,25 +236,18 @@
          * This replaces the Firebase/Firestore listeners
          */
         function setupWebSocket() {
-            // Close existing connection if any
-            if (chatSocket) {
-                chatSocket.close();
-                chatSocket = null;
+            if (userSocket) {
+                userSocket.close();
+                userSocket = null;
             }
-
-            // We don't connect to a specific room until one is selected
-            // The global WebSocket will be used for room list updates
-
-            // Set up event handlers for WebSocket events
             document.addEventListener('roomSelected', function(e) {
                 const roomId = e.detail.roomId;
                 connectToRoom(roomId);
             });
-
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsHost = window.location.host || 'localhost:8000';
+            // Always send token in URL
             const userWsUrl = `${wsProtocol}//${wsHost}/ws/user/${currentUser.id}/?token=${currentToken}`;
-
             userSocket = new WebSocket(userWsUrl);
 
             userSocket.onopen = () => console.log('User WebSocket connected');
@@ -265,6 +262,47 @@
                     // Handle read receipts sent to the user-specific group
                     // These will always include a room_id since they're not sent via the room group
                     handleReadReceipt(data.message_ids, data.reader_id, data.room_id);
+                } else if (data.type === 'chat.message.notification') {
+                    // Handle new message notification
+                    console.log(`New message notification received in room ${data.chat_id} from user ${data.sender_id}`);
+                    // Reload rooms to update the room list with the new message
+                    loadRooms();
+                } else if (data.type === 'chat.user.entered') {
+                    // Handle when a user enters the chat room
+                    console.log(`User ${data.user_id} entered room ${data.room_id}`);
+                    
+                    // First, update the room list to reflect any changes
+                    loadRooms();
+                    
+                    // Then, if we're in the room where the user entered, update message statuses
+                    if (currentRoom && currentRoom.id === data.room_id) {
+                        const otherParticipant = currentRoom.participants.find(p => p.id === data.user_id);
+                        if (otherParticipant) {
+                            // Update all messages in the current room to read status
+                            const messageElements = document.querySelectorAll('.message.sent');
+                            let updatedAny = false;
+                            
+                            messageElements.forEach(msg => {
+                                const checkmarks = msg.querySelector('.checkmarks');
+                                if (checkmarks && checkmarks.classList.contains('delivered')) {
+                                    checkmarks.classList.remove('delivered');
+                                    checkmarks.classList.add('read');
+                                    updatedAny = true;
+                                }
+                            });
+                            
+                            // If we updated any messages, reload the room to ensure consistency
+                            if (updatedAny) {
+                                loadRooms();
+                            }
+                        }
+                    } else if (data.type === 'user_presence') {
+                        // Handle user presence (online/offline) status
+                        handleUserPresence(data.user_id, data.is_online, data.room_id);
+                    }
+                } else if (data.type === 'user_presence') {
+                    // Handle user presence (online/offline) status
+                    handleUserPresence(data.user_id, data.is_online, data.room_id);
                 }
             };
 
@@ -277,26 +315,23 @@
          * @param {number} roomId - ID of the room to connect to
          */
         function connectToRoom(roomId) {
-            // Close existing connection if any
-            if (chatSocket) {
-                chatSocket.close();
-                chatSocket = null;
+            if (chatSockets[roomId] && chatSockets[roomId].readyState === WebSocket.OPEN) {
+                console.log(`Already connected to room ${roomId}`);
+                return;
             }
-
-            // Create new WebSocket connection with JWT token
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsHost = window.location.host || 'localhost:8000';
+            // Always send token in URL
             const wsUrl = `${wsProtocol}//${wsHost}/ws/chat/${roomId}/?token=${currentToken}`;
-
-            chatSocket = new WebSocket(wsUrl);
+            chatSockets[roomId] = new WebSocket(wsUrl);
 
             // Connection opened
-            chatSocket.onopen = function(e) {
-                console.log('WebSocket connection established');
+            chatSockets[roomId].onopen = function(e) {
+                console.log(`WebSocket connection established for room ${roomId}`);
             };
 
             // Listen for messages
-            chatSocket.onmessage = function(e) {
+            chatSockets[roomId].onmessage = function(e) {
                 const data = JSON.parse(e.data);
 
                 // Handle different types of messages
@@ -314,32 +349,19 @@
                     handleTypingIndicator(data.user_id, data.is_typing);
                 } else if (data.type === 'user_presence') {
                     // Handle user presence (online/offline) status
-                    handleUserPresence(data.user_id, data.is_online);
+                    handleUserPresence(data.user_id, data.is_online, data.room_id);
                 }
             };
 
-            function handleUserPresence(userId, isOnline) {
-                if (!currentRoom) return;
-
-                const otherParticipant = currentRoom.participants.find(p => p.id !== currentUser.id);
-                if (otherParticipant && userId === otherParticipant.id) {
-                    const lastSeenDiv = document.getElementById('lastSeen');
-                    if (isOnline) {
-                        lastSeenDiv.textContent = 'Online now';
-                        lastSeenDiv.style.display = 'block';
-                    }
-                }
-            }
-
-
             // Connection closed
-            chatSocket.onclose = function(e) {
-                console.log('WebSocket connection closed');
+            chatSockets[roomId].onclose = function(e) {
+                console.log(`[onclose] WebSocket connection closed for room ${roomId}. Reason:`, e.reason, 'Code:', e.code, 'WasClean:', e.wasClean);
+                delete chatSockets[roomId]; // Remove the closed connection from our map
             };
 
             // Connection error
-            chatSocket.onerror = function(e) {
-                console.error('WebSocket error:', e);
+            chatSockets[roomId].onerror = function(e) {
+                console.error(`WebSocket error for room ${roomId}:`, e);
             };
         }
 
@@ -530,31 +552,28 @@
          * @returns {HTMLElement} - The created room element
          */
         function createRoomElement(room) {
+            // Defensive: ensure participants is an array
+            if (!room.participants || !Array.isArray(room.participants)) {
+                console.error('Room missing participants:', room);
+                return document.createElement('div');
+            }
             const otherParticipant = room.participants.find(p => p.id !== currentUser.id);
             const div = document.createElement('div');
             div.className = 'room-item';
             div.onclick = () => selectRoom(room);
-
-            // Store the room ID as a data attribute for easy lookup
             div.dataset.roomId = room.id.toString();
-
-            // Create the HTML for the room item
-            let roomHTML = `<strong>${otherParticipant.first_name} ${otherParticipant.last_name}`;
-
+            let roomHTML = `<strong>${otherParticipant ? otherParticipant.first_name + ' ' + otherParticipant.last_name : 'Unknown User'}`;
             // Add checkmarks if the last message was sent by the current user
             if (room.was_last_message_sent_by_me && room.last_message) {
                 const isRead = room.last_message_read_at !== null;
                 const statusClass = isRead ? 'read' : 'delivered';
                 roomHTML += ` <span class="checkmarks ${statusClass}" style="font-size: 0.8em; margin-left: 5px; font-weight: bold;">✓✓</span>`;
             }
-
             // Add unread message count badge if there are unread messages
             if (room.unread_count > 0) {
                 roomHTML += ` <span class="unread-badge">${room.unread_count}</span>`;
             }
-
-            roomHTML += `</strong><br><small>${room.last_message ? room.last_message.content : 'No messages'}</small>`;
-
+            roomHTML += `</strong><br><small>${room.last_message && room.last_message.content ? room.last_message.content : 'No messages'}</small>`;
             div.innerHTML = roomHTML;
             return div;
         }
@@ -584,51 +603,44 @@
          * @param {Object} room - Selected chat room object
          */
         async function selectRoom(room) {
-            currentRoom = room;
-            const otherParticipant = room.participants.find(p => p.id !== currentUser.id);
-            document.getElementById('currentRoomTitle').textContent = 
-                `Chat with ${otherParticipant.first_name}`;
+            console.log('[selectRoom] called for room:', room.id, 'currentRoom:', currentRoom ? currentRoom.id : null);
+            try {
+                // Close all chat room sockets except the new one
+                Object.keys(chatSockets).forEach(roomId => {
+                    if (parseInt(roomId) !== room.id && chatSockets[roomId] && chatSockets[roomId].readyState === WebSocket.OPEN) {
+                        console.log(`[selectRoom] Closing connection for room ${roomId}`);
+                        chatSockets[roomId].close();
+                        delete chatSockets[roomId];
+                    }
+                });
 
-            // Display last seen indicator
-            const lastSeenDiv = document.getElementById('lastSeen');
-            if (room.other_user_last_seen) {
-                const lastSeenDate = new Date(room.other_user_last_seen);
-                const now = new Date();
-                const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
-
-                let lastSeenText;
-                if (diffMinutes < 1) {
-                    lastSeenText = 'Online now';
-                } else if (diffMinutes < 60) {
-                    lastSeenText = `Last seen ${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-                } else if (diffMinutes < 1440) { // less than a day
-                    const hours = Math.floor(diffMinutes / 60);
-                    lastSeenText = `Last seen ${hours} hour${hours === 1 ? '' : 's'} ago`;
-                } else if (diffMinutes < 2880) { // less than 2 days (yesterday)
-                    lastSeenText = `Last seen yesterday`;
-                } else if (diffMinutes < 10080) { // less than 7 days
-                    const days = Math.floor(diffMinutes / 1440);
-                    lastSeenText = `Last seen ${days} days ago`;
-                } else {
-                    lastSeenText = `Last seen on ${lastSeenDate.toLocaleDateString()}`;
+                // If the selected room is already open, do nothing
+                if (chatSockets[room.id] && chatSockets[room.id].readyState === WebSocket.OPEN) {
+                    // Update UI to show selected room
+                    document.querySelectorAll('.room-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    document.querySelector(`[data-room-id="${room.id}"]`).classList.add('active');
+                    currentRoom = room;
+                    await loadMessages(room.id);
+                    await loadRooms();
+                    return;
                 }
 
-                lastSeenDiv.textContent = lastSeenText;
-                lastSeenDiv.style.display = 'block';
-            } else {
-                lastSeenDiv.textContent = '';
-                lastSeenDiv.style.display = 'none';
-            }
+                // Connect to the room's WebSocket
+                connectToRoom(room.id);
 
-            try {
+                // Update UI to show selected room
+                document.querySelectorAll('.room-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-room-id="${room.id}"]`).classList.add('active');
+
+                // Update current room
+                currentRoom = room;
+
                 // Load messages for the selected room
                 await loadMessages(room.id);
-
-                // Connect to the room via WebSocket
-                // Dispatch a custom event to trigger the WebSocket connection
-                document.dispatchEvent(new CustomEvent('roomSelected', {
-                    detail: { roomId: room.id }
-                }));
 
                 // Refresh rooms list to update unread message counts
                 await loadRooms();
@@ -643,7 +655,6 @@
          */
         async function loadMessages(roomId) {
             try {
-                // Fetch messages - this will also mark them as read on the server
                 const response = await fetch(`http://localhost:8000/api/v1/chat/rooms/${roomId}/messages/`, {
                     headers: {
                         'Authorization': `Bearer ${currentToken}`
@@ -706,7 +717,7 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
             // Mark unread messages as read
-            if (unreadMessageIds.length > 0 && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            if (unreadMessageIds.length > 0 && chatSockets[currentRoom.id] && chatSockets[currentRoom.id].readyState === WebSocket.OPEN) {
                 markMessagesAsRead(unreadMessageIds);
             }
         }
@@ -736,7 +747,12 @@
          * @param {Array} messageIds - IDs of messages to mark as read
          */
         function markMessagesAsRead(messageIds) {
-            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN || !messageIds.length) {
+            if (!currentRoom || !messageIds.length) {
+                return;
+            }
+
+            const chatSocket = chatSockets[currentRoom.id];
+            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
                 return;
             }
 
@@ -761,9 +777,9 @@
 
             try {
                 // Option 1: Send via WebSocket if connected
-                if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                if (chatSockets[currentRoom.id] && chatSockets[currentRoom.id].readyState === WebSocket.OPEN) {
                     // Send message via WebSocket
-                    chatSocket.send(JSON.stringify({
+                    chatSockets[currentRoom.id].send(JSON.stringify({
                         type: 'chat_message',
                         content: content
                     }));
@@ -802,22 +818,14 @@
          */
         function logout() {
             // Close WebSocket connection if open
-            if (chatSocket) {
-                chatSocket.close();
-                chatSocket = null;
-            }
-
-            // Close user WebSocket connection if open
             if (userSocket) {
                 userSocket.close();
                 userSocket = null;
             }
-
             // Reset global state
             currentToken = '';
             currentUser = null;
             currentRoom = null;
-
             // Show login section, hide chat section
             document.getElementById('loginSection').classList.remove('hidden');
             document.getElementById('chatSection').classList.add('hidden');
@@ -828,12 +836,12 @@
          * @param {boolean} isTyping - Whether the user is typing
          */
         function sendTypingIndicator(isTyping) {
-            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN || !currentRoom) {
+            if (!currentRoom || !chatSockets[currentRoom.id] || chatSockets[currentRoom.id].readyState !== WebSocket.OPEN) {
                 return;
             }
 
             // Send typing indicator via WebSocket
-            chatSocket.send(JSON.stringify({
+            chatSockets[currentRoom.id].send(JSON.stringify({
                 type: 'typing',
                 is_typing: isTyping
             }));
@@ -845,6 +853,47 @@
                 sendMessage();
             }
         });
+
+        /**
+         * Handles user presence (online/offline) status
+         * @param {number} userId - ID of the user
+         * @param {boolean} isOnline - Whether the user is online
+         */
+        function handleUserPresence(userId, isOnline, roomId) {
+            // Get the current room's participants
+            if (!currentRoom || !currentRoom.participants) return;
+            
+            // Find the user in the current room's participants
+            const user = currentRoom.participants.find(p => p.id === userId);
+            if (!user) return;
+
+            // Only log when it's not the current user and it's the current room
+            if (userId !== currentUser.id && currentRoom.id === roomId) {
+                if (isOnline) {
+                    console.log(`${user.first_name} ${user.last_name} has joined the chat in room ${roomId}`);
+                    // When user joins, update all sent messages to read status
+                    const messagesDiv = document.getElementById('messages');
+                    const messageElements = messagesDiv.querySelectorAll('.message.sent');
+                    let updatedAny = false;
+                    
+                    messageElements.forEach(msg => {
+                        const checkmarks = msg.querySelector('.checkmarks');
+                        if (checkmarks && checkmarks.classList.contains('delivered')) {
+                            checkmarks.classList.remove('delivered');
+                            checkmarks.classList.add('read');
+                            updatedAny = true;
+                        }
+                    });
+                    
+                    // If we updated any messages, reload the room to ensure consistency
+                    if (updatedAny) {
+                        loadRooms();
+                    }
+                } else {
+                    console.log(`${user.first_name} ${user.last_name} has left the chat in room ${roomId}`);
+                }
+            }
+        }
     </script>
 </body>
 </html> 
