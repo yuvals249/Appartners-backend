@@ -1,1 +1,1 @@
-web: daphne appartners.asgi:application
+web: daphne -b 0.0.0.0 -p $PORT appartners.asgi:application
