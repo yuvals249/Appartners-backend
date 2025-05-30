@@ -120,7 +120,6 @@ ASGI_APPLICATION = 'appartners.asgi.application'
 
 # Use REDIS_URL env var in production; fallback to in-memory channel layer locally
 redis_url = env('REDIS_URL', default=None)
-redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
 
 if redis_url:
     CHANNEL_LAYERS = {
