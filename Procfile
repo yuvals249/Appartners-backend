@@ -1,1 +1,1 @@
-web: gunicorn appartners.wsgi
+web: daphne appartners.asgi:application
