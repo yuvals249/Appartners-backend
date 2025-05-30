@@ -117,25 +117,17 @@ WSGI_APPLICATION = 'appartners.wsgi.application'
 ASGI_APPLICATION = 'appartners.asgi.application'
 
 # Channel layers for WebSockets
-# Function to check if Redis is available
-def is_redis_available():
-    import socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.connect(('127.0.0.1', 6379))
-        return True
-    except socket.error:
-        return False
-    finally:
-        sock.close()
 
-# Use Redis channel layer if Redis is available, otherwise use in-memory channel layer
-if is_redis_available():
+# Use REDIS_URL env var in production; fallback to in-memory channel layer locally
+redis_url = env('REDIS_URL', default=None)
+redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+
+if redis_url:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                "hosts": [('127.0.0.1', 6379)],
+                "hosts": [redis_url],
             },
         },
     }
