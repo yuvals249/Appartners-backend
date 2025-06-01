@@ -40,7 +40,8 @@ class ApartmentRecommendationView(APIView):
             
         try:
             # Get recommended apartments using the utility function
-            recommended_apartments = get_recommended_apartments(user_id, limit)
+            # Now returns both apartments and compatibility scores
+            recommended_apartments, compatibility_scores = get_recommended_apartments(user_id, limit)
             
             if not recommended_apartments.exists():
                 return Response(
@@ -52,10 +53,18 @@ class ApartmentRecommendationView(APIView):
                 )
                 
             serializer = ApartmentSerializer(recommended_apartments, many=True)
+            apartments_data = serializer.data
+            
+            # Add compatibility scores to each apartment (multiply by 100 to get percentage)
+            for i, apartment in enumerate(apartments_data):
+                if i < len(compatibility_scores):
+                    # Convert score to percentage (0-100) and round to integer
+                    apartments_data[i]['compatibility_score'] = round(compatibility_scores[i] * 100)
+            
             return Response(
                 {
                     "message": "Recommended apartments retrieved successfully",
-                    "apartments": serializer.data
+                    "apartments": apartments_data
                 },
                 status=status.HTTP_200_OK
             )
