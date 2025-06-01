@@ -25,10 +25,13 @@ class UserBasicSerializer(serializers.ModelSerializer):
     last_name = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
+    preferred_city = serializers.SerializerMethodField()
+    questionnaire_responses = serializers.SerializerMethodField()
 
     class Meta:
         model = UserDetails
-        fields = ['id', 'user_id', 'email', 'first_name', 'last_name', 'phone_number', 'photo_url']
+        fields = ['id', 'user_id', 'email', 'first_name', 'last_name', 'phone_number', 'photo_url', 
+        'preferred_city', 'questionnaire_responses']
         
     def get_user_id(self, obj):
         """
@@ -90,3 +93,64 @@ class UserBasicSerializer(serializers.ModelSerializer):
         except Exception as e:
             logger.error(f"Error getting photo URL: {str(e)}")
             return None
+
+        """
+        Return preferred city as an object with ID and name
+        """
+        if obj.preferred_city:
+            try:
+                # Try to get the city object by name (exact match)
+                city = City.objects.filter(name=obj.preferred_city).first()
+                
+                # If not found by exact name, try case-insensitive match
+                if not city:
+                    city = City.objects.filter(name__iexact=obj.preferred_city).first()
+                
+                if city:
+                    return {
+                        "id": city.id,
+                        "name": city.name
+                    }
+                else:
+                    # If city not found in database, still return structured data
+                    return {
+                        "name": obj.preferred_city
+                    }
+            except Exception as e:
+                # Log the error but continue
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error finding city: {str(e)}")
+                
+                # Return structured data with just the name
+                return {
+                    "name": obj.preferred_city
+                }
+        return None
+
+    def get_questionnaire_responses(self, obj):
+        """
+        Return user's questionnaire responses in a structured format
+        """
+        try:
+            # Get all responses for the user, ordered by question order
+            user_responses = UserResponse.objects.filter(user=obj.user).select_related('question').order_by('question__order')
+            
+            # Create a detailed response with question details (empty list if no responses)
+            response_data = []
+            for response in user_responses:
+                question_serializer = QuestionSerializer(response.question)
+                response_data.append({
+                    'question': question_serializer.data,
+                    'text_response': response.text_response,
+                    'numeric_response': response.numeric_response,
+                    'created_at': response.created_at
+                })
+            
+            return response_data
+        except Exception as e:
+            # Log the error but return empty list
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching questionnaire responses: {str(e)}")
+            return []
