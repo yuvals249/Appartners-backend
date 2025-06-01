@@ -25,16 +25,34 @@ class UserDetailsSerializer(serializers.ModelSerializer):
         """
         if obj.preferred_city:
             try:
-                # Try to get the city object by name
+                # Try to get the city object by name (exact match)
                 city = City.objects.filter(name=obj.preferred_city).first()
+                
+                # If not found by exact name, try case-insensitive match
+                if not city:
+                    city = City.objects.filter(name__iexact=obj.preferred_city).first()
+                
                 if city:
                     return {
                         "id": city.id,
                         "name": city.name
                     }
-            except Exception:
-                pass
-        return obj.preferred_city
+                else:
+                    # If city not found in database, still return structured data
+                    return {
+                        "name": obj.preferred_city
+                    }
+            except Exception as e:
+                # Log the error but continue
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error finding city: {str(e)}")
+                
+                # Return structured data with just the name
+                return {
+                    "name": obj.preferred_city
+                }
+        return None
 
     class Meta:
         model = UserDetails

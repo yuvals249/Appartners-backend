@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from apartments.models import Apartment, ApartmentUserLike
+from apartments.serializers.apartment import ApartmentSerializer
+from apartments.utils.compatibility import calculate_user_compatibility
 from users.models.user_details import UserDetails
 from users.models.user_like import UserUserLike
 from users.serializers.api_user_details import ApiUserDetailsSerializer
@@ -91,7 +93,8 @@ class ApartmentLikeView(APIView):
 class ApartmentLikersView(APIView):
     """
     API View to retrieve all users who liked the authenticated user's apartment.
-    Returns full user details according to the API specification.
+    Returns full user details according to the API specification, along with the apartment
+    that was liked and a compatibility score between users.
     """
     
     def get(self, request):
@@ -100,21 +103,29 @@ class ApartmentLikersView(APIView):
             
         user_id = request.user_from_token
         
-            
         try:
-            user_apartment = Apartment.objects.filter(user_id=user_id).first()
+            # Get all apartments owned by the user
+            user_apartments = Apartment.objects.filter(user_id=user_id)
             
-            if not user_apartment:
+            if not user_apartments.exists():
                 return Response(
                     {"message": "You haven't created any apartments yet"},
                     status=status.HTTP_404_NOT_FOUND
                 )
                 
-            # Get all users who liked this apartment
-            likers_ids = ApartmentUserLike.objects.filter(
-                apartment=user_apartment,
+            # Get all likes for the user's apartments
+            apartment_likes = ApartmentUserLike.objects.filter(
+                apartment__in=user_apartments,
                 like=True
-            ).values_list('user_id', flat=True)
+            ).select_related('apartment')
+            
+            # Extract liker IDs
+            likers_ids = [like.user_id for like in apartment_likes]
+            
+            # Create a mapping of liker_id to apartment
+            liker_to_apartment = {}
+            for like in apartment_likes:
+                liker_to_apartment[like.user_id] = like.apartment
             
             # Get all user-to-user likes/dislikes
             user_likes = UserUserLike.objects.filter(
@@ -138,13 +149,34 @@ class ApartmentLikersView(APIView):
                 )
             
             try:
-                # Use the API-compliant serializer that matches the full specification
-                serializer = ApiUserDetailsSerializer(user_details, many=True)
-                data = serializer.data
-                return Response(data, status=status.HTTP_200_OK)
+                # Use the API-compliant serializer for user details
+                user_serializer = ApiUserDetailsSerializer(user_details, many=True)
+                users_data = user_serializer.data
+                
+                # Add apartment and compatibility score to each user
+                for i, user_data in enumerate(users_data):
+                    liker_id = user_data.get('id')
+                    
+                    # Get the specific apartment this user liked
+                    liked_apartment = liker_to_apartment.get(liker_id)
+                    if liked_apartment:
+                        # Serialize the apartment
+                        apartment_serializer = ApartmentSerializer(liked_apartment)
+                        users_data[i]['liked_apartment'] = apartment_serializer.data
+                    
+                    # Calculate compatibility score (0-1) and convert to percentage (0-100)
+                    compatibility_score = calculate_user_compatibility(user_id, liker_id) * 100
+                    # Round to nearest integer
+                    users_data[i]['compatibility_score'] = round(compatibility_score)
+                
+                # Prepare the response data - just return the users with embedded apartment data
+                response_data = users_data
+                
+                return Response(response_data, status=status.HTTP_200_OK)
             except Exception as serializer_error:
+                logger.error(f"Error serializing data: {str(serializer_error)}", exc_info=True)
                 return Response(
-                    {"error": f"Error serializing user data: {str(serializer_error)}"},
+                    {"error": f"Error serializing data: {str(serializer_error)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             

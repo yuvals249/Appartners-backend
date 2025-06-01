@@ -34,8 +34,8 @@ def rank_apartments_by_compatibility(filtered_apartments, user_id, limit):
     # Sort by compatibility score (descending)
     scored_apartments.sort(key=lambda x: x[1], reverse=True)
     
-    # Return top N apartments
-    return [apt for apt, score in scored_apartments[:limit]]
+    # Return top N apartments with their scores
+    return scored_apartments[:limit]
 
 
 def convert_to_ordered_queryset(ranked_apartments):
@@ -80,22 +80,29 @@ def get_recommended_apartments(user_id, limit=10):
         filtered_apartments = filter_apartments(user_id)
         logger.info(f"Filtered apartments for user {user_id}: {filtered_apartments}")
         
-        # If no apartments match the basic criteria, return empty queryset
+        # If no apartments match the basic criteria, return empty queryset and empty scores list
         if not filtered_apartments.exists():
-            return Apartment.objects.none()
+            return Apartment.objects.none(), []
         
         # Get list of apartments and convert to Python list for ranking
         apartment_list = list(filtered_apartments)
         
         # Rank apartments by compatibility with the user
-        ranked_apartments = rank_apartments_by_compatibility(
+        scored_apartments = rank_apartments_by_compatibility(
             apartment_list, user_id, limit
         )
-        logger.info(f"Ranked apartments for user {user_id}: {ranked_apartments}")
+        logger.info(f"Ranked apartments for user {user_id}: {scored_apartments}")
+        
+        # Extract apartments and scores
+        apartments = [apt for apt, score in scored_apartments]
+        scores = [score for apt, score in scored_apartments]
         
         # Convert back to a queryset with preserved order
-        return convert_to_ordered_queryset(ranked_apartments)
+        ordered_apartments = convert_to_ordered_queryset(apartments)
+        
+        # Return both the ordered apartments and the compatibility scores
+        return ordered_apartments, scores
         
     except Exception as e:
         logger.error(f"Error in get_recommended_apartments: {str(e)}")
-        return Apartment.objects.none()
+        return Apartment.objects.none(), []

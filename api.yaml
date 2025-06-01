@@ -1142,7 +1142,7 @@ paths:
       tags:
       - Apartments
       summary: Get users who liked user's apartments
-      description: Returns all users who liked the authenticated user's apartments.
+      description: Returns all users who liked the authenticated user's apartments, including the specific apartment they liked and a compatibility score.
       security:
       - UserAuth: []
       responses:
@@ -1153,7 +1153,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserDetails'
+                  allOf:
+                    - $ref: '#/components/schemas/UserDetails'
+                    - type: object
+                      properties:
+                        liked_apartment:
+                          $ref: '#/components/schemas/ApartmentResponse'
+                        compatibility_score:
+                          type: integer
+                          description: Compatibility score between the apartment owner and the liker (0-100%)
         "401":
           description: Unauthorized
           content:
@@ -1202,7 +1210,13 @@ paths:
                   apartments:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ApartmentResponse'
+                      allOf:
+                        - $ref: '#/components/schemas/ApartmentResponse'
+                        - type: object
+                          properties:
+                            compatibility_score:
+                              type: integer
+                              description: Compatibility score between the user and the apartment owner (0-100%)
         "400":
           description: Invalid request parameters
           content:
