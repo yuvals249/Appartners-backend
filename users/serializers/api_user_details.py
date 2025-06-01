@@ -1,6 +1,8 @@
 from rest_framework import serializers
 import logging
 from users.models.user_details import UserDetails
+from users.models.questionnaire import UserResponse
+from users.serializers.questionnaire import QuestionSerializer
 from apartments.models import City
 
 # Get logger
@@ -15,13 +17,14 @@ class ApiUserDetailsSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     photo_url = serializers.SerializerMethodField()
     preferred_city = serializers.SerializerMethodField()
+    questionnaire_responses = serializers.SerializerMethodField()
     
     class Meta:
         model = UserDetails
         fields = [
             'id', 'email', 'first_name', 'last_name', 'gender',
             'occupation', 'birth_date', 'phone_number', 
-            'preferred_city', 'about_me', 'photo_url'
+            'preferred_city', 'about_me', 'photo_url', 'questionnaire_responses'
         ]
     
     def get_photo_url(self, obj):
@@ -54,6 +57,30 @@ class ApiUserDetailsSerializer(serializers.ModelSerializer):
             logger.error(f"Error getting preferred city: {str(e)}")
             return None
             
+    def get_questionnaire_responses(self, obj):
+        """
+        Return user's questionnaire responses in a structured format
+        """
+        try:
+            # Get all responses for the user, ordered by question order
+            user_responses = UserResponse.objects.filter(user=obj.user).select_related('question').order_by('question__order')
+            
+            # Create a detailed response with question details (empty list if no responses)
+            response_data = []
+            for response in user_responses:
+                question_serializer = QuestionSerializer(response.question)
+                response_data.append({
+                    'question': question_serializer.data,
+                    'text_response': response.text_response,
+                    'numeric_response': response.numeric_response,
+                    'created_at': response.created_at
+                })
+            
+            return response_data
+        except Exception as e:
+            logger.error(f"Error fetching questionnaire responses: {str(e)}")
+            return []
+    
     def to_representation(self, instance):
         try:
             return super().to_representation(instance)
