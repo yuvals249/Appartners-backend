@@ -88,13 +88,14 @@ class ChatViewSet(viewsets.ModelViewSet):
         room.participants.add(user1, user2)
         return room
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], url_path='send_message_to_user')
     def send_message_to_user(self, request):
         """
         Send a message to a user, creating a chat room if needed.
 
         Handles message creation in both Django DB and Firebase.
         Creates a new chat room if one doesn't exist between the users.
+        Supports both WebSocket and REST API message sending.
 
         Request body:
             recipient_id: ID of user to send message to
@@ -103,70 +104,122 @@ class ChatViewSet(viewsets.ModelViewSet):
         Returns:
             room: Serialized chat room data
             message: Serialized message data
+
+        Raises:
+            400: If recipient_id or content is missing
+            400: If trying to send message to self
+            404: If recipient user not found
+            500: If there's an error saving to Firebase or database
         """
+        logger = logging.getLogger('chat')
+        logger.info(f"Received message request from user {request.user.id}")
+
+        # Validate authentication
+        if not request.user.is_authenticated:
+            logger.warning("Unauthenticated message request")
+            return Response(
+                {'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Validate request method
+        if request.method != 'POST':
+            logger.warning(f"Invalid request method: {request.method}")
+            return Response(
+                {'detail': f'Method "{request.method}" not allowed.'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        
+        # Validate input
         recipient_id = request.data.get('recipient_id')
         content = request.data.get('content')
 
         if not recipient_id or not content:
+            logger.warning(f"Missing required fields: recipient_id={recipient_id}, content={'present' if content else 'missing'}")
             return Response(
-                {'error': 'Both recipient_id and content are required'},
+                {'detail': 'Both recipient_id and content are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Prevent sending message to yourself
         if int(recipient_id) == request.user.id:
+            logger.warning(f"User {request.user.id} attempted to send message to self")
             return Response(
-                {'error': 'Cannot send message to yourself'},
+                {'detail': 'Cannot send message to yourself'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             recipient = User.objects.get(id=recipient_id)
         except User.DoesNotExist:
+            logger.warning(f"Recipient user {recipient_id} not found")
             return Response(
-                {'error': 'Recipient user not found'},
+                {'detail': 'Recipient user not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Get or create chat room
-        room = self.get_or_create_room(request.user, recipient)
+        try:
+            # Get or create chat room
+            room = self.get_or_create_room(request.user, recipient)
+            logger.info(f"Using chat room {room.id} for message from {request.user.id} to {recipient_id}")
 
-        # Create message in Firebase for real-time updates
-        db = firestore.client()
-        firebase_message = db.collection('messages').add({
-            'room_id': str(room.id),
-            'sender_id': str(request.user.id),
-            'content': content,
-            'timestamp': firestore.SERVER_TIMESTAMP,
-            'read_at': None
-        })
+            # Create message in Firebase for real-time updates
+            try:
+                db = firestore.client()
+                firebase_message = db.collection('messages').add({
+                    'room_id': str(room.id),
+                    'sender_id': str(request.user.id),
+                    'content': content,
+                    'timestamp': firestore.SERVER_TIMESTAMP,
+                    'read_at': None
+                })
+                logger.info(f"Message saved to Firebase with ID {firebase_message[1].id}")
+            except Exception as e:
+                logger.error(f"Failed to save message to Firebase: {str(e)}")
+                # Continue without Firebase - we'll still save to Django DB
+                firebase_message = (None, None)
 
-        # Create message in Django DB
-        message = Message.objects.create(
-            room=room,
-            sender=request.user,
-            content=content,
-            firebase_id=firebase_message[1].id,
-            read_at=None
-        )
+            # Create message in Django DB
+            message = Message.objects.create(
+                room=room,
+                sender=request.user,
+                content=content,
+                firebase_id=firebase_message[1].id if firebase_message[1] else None,
+                read_at=None
+            )
+            logger.info(f"Message {message.id} saved to Django DB")
 
-        # Update room's last_message_at timestamp
-        room.save()
+            # Update room's last_message_at timestamp
+            room.save()
 
-        # Broadcast the new message over WebSockets
-        self.broadcast_message(room.id, message)
+            # Try to broadcast updates via WebSocket, but continue if it fails
+            try:
+                # Broadcast the new message over WebSockets
+                self.broadcast_message(room.id, message)
+                logger.info(f"Message {message.id} broadcast via WebSocket")
 
-        # Broadcast room update to reflect the new message to users in the room
-        self.broadcast_room_update(room)
+                # Broadcast room update to reflect the new message
+                self.broadcast_room_update(room)
+                logger.info(f"Room {room.id} update broadcast via WebSocket")
 
-        # Broadcast room update to the recipient, even if they're not in this room
-        # This ensures the sidebar is updated with the new message
-        self.broadcast_room_update_to_user(recipient.id, room)
+                # Broadcast room update to the recipient
+                self.broadcast_room_update_to_user(recipient.id, room)
+                logger.info(f"Room update broadcast to recipient {recipient.id}")
+            except Exception as e:
+                logger.warning(f"WebSocket broadcast failed, but message was saved: {str(e)}")
+                # Continue without WebSocket - the message is still saved
 
-        return Response({
-            'room': ChatRoomSerializer(room, context={'request': request}).data,
-            'message': MessageSerializer(message, context={'request': request}).data
-        })
+            return Response({
+                'room': ChatRoomSerializer(room, context={'request': request}).data,
+                'message': MessageSerializer(message, context={'request': request}).data
+            })
+
+        except Exception as e:
+            logger.error(f"Unexpected error sending message: {str(e)}")
+            return Response(
+                {'detail': 'An error occurred while sending the message'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
