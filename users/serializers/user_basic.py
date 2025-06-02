@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from users.models.user_details import UserDetails
+from users.models.questionnaire import UserResponse
+from users.serializers.questionnaire import QuestionSerializer
+from apartments.models import City
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,11 +30,12 @@ class UserBasicSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     preferred_city = serializers.SerializerMethodField()
     questionnaire_responses = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
 
     class Meta:
         model = UserDetails
         fields = ['id', 'user_id', 'email', 'first_name', 'last_name', 'phone_number', 'photo_url', 
-        'preferred_city', 'questionnaire_responses']
+        'preferred_city', 'questionnaire_responses', 'bio']
         
     def get_user_id(self, obj):
         """
@@ -94,47 +98,60 @@ class UserBasicSerializer(serializers.ModelSerializer):
             logger.error(f"Error getting photo URL: {str(e)}")
             return None
 
+    def get_preferred_city(self, obj):
         """
         Return preferred city as an object with ID and name
         """
-        if obj.preferred_city:
-            try:
-                # Try to get the city object by name (exact match)
-                city = City.objects.filter(name=obj.preferred_city).first()
-                
-                # If not found by exact name, try case-insensitive match
-                if not city:
-                    city = City.objects.filter(name__iexact=obj.preferred_city).first()
-                
-                if city:
-                    return {
-                        "id": city.id,
-                        "name": city.name
-                    }
+        try:
+            # Determine if we're dealing with User or UserDetails
+            if isinstance(obj, User):
+                user_details = UserDetails.objects.filter(user=obj).first()
+                if user_details and user_details.preferred_city:
+                    preferred_city = user_details.preferred_city
                 else:
-                    # If city not found in database, still return structured data
-                    return {
-                        "name": obj.preferred_city
-                    }
-            except Exception as e:
-                # Log the error but continue
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error finding city: {str(e)}")
+                    return None
+            else:  # UserDetails
+                if not obj.preferred_city:
+                    return None
+                preferred_city = obj.preferred_city
                 
-                # Return structured data with just the name
+            # Try to get the city object by name (exact match)
+            city = City.objects.filter(name=preferred_city).first()
+            
+            # If not found by exact name, try case-insensitive match
+            if not city:
+                city = City.objects.filter(name__iexact=preferred_city).first()
+            
+            if city:
                 return {
-                    "name": obj.preferred_city
+                    "id": city.id,
+                    "name": city.name
                 }
-        return None
+            else:
+                # If city not found in database, still return structured data
+                return {
+                    "name": preferred_city
+                }
+        except Exception as e:
+            # Log the error but continue
+            logger.error(f"Error finding city: {str(e)}")
+            
+            # Return None on error
+            return None
 
     def get_questionnaire_responses(self, obj):
         """
         Return user's questionnaire responses in a structured format
         """
         try:
+            # Determine the user object based on whether we received a User or UserDetails
+            if isinstance(obj, User):
+                user = obj
+            else:
+                user = obj.user
+                
             # Get all responses for the user, ordered by question order
-            user_responses = UserResponse.objects.filter(user=obj.user).select_related('question').order_by('question__order')
+            user_responses = UserResponse.objects.filter(user=user).select_related('question').order_by('question__order')
             
             # Create a detailed response with question details (empty list if no responses)
             response_data = []
@@ -149,8 +166,18 @@ class UserBasicSerializer(serializers.ModelSerializer):
             
             return response_data
         except Exception as e:
-            # Log the error but return empty list
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error fetching questionnaire responses: {str(e)}")
             return []
+
+    def get_bio(self, obj):
+        """
+        Get the user's bio/about_me field
+        """
+        try:
+            if isinstance(obj, User):
+                user_details = UserDetails.objects.filter(user=obj).first()
+                return user_details.about_me if user_details else ""
+            return obj.about_me if hasattr(obj, 'about_me') else ""
+        except Exception as e:
+            logger.error(f"Error getting about_me: {str(e)}")
+            return ""

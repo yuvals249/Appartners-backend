@@ -2,6 +2,13 @@ from rest_framework import serializers
 from .models import ChatRoom, Message
 from users.serializers import UserBasicSerializer
 from users.models.user_presence import UserPresence
+from django.contrib.auth.models import User
+from apartments.models import Apartment
+from apartments.models.apartment_user_like import ApartmentUserLike
+from apartments.serializers.apartment import ApartmentSerializer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MessageSerializer(serializers.ModelSerializer):
     """
@@ -74,6 +81,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         last_message_sender_id: ID of the user who sent the last message (computed field)
         last_message_read_at: Timestamp when the last message was read (computed field)
         was_last_message_sent_by_me: Boolean indicating if the current user sent the last message (computed field)
+        connected_apartment: Apartment connecting users in the chat room (computed field)
     """
     participants = UserBasicSerializer(many=True, read_only=True)  # List of participants with basic info
     last_message = serializers.SerializerMethodField()  # Custom field for last message
@@ -82,11 +90,12 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     last_message_sender_id = serializers.SerializerMethodField()  # ID of the user who sent the last message
     last_message_read_at = serializers.SerializerMethodField()  # Timestamp when the last message was read
     was_last_message_sent_by_me = serializers.SerializerMethodField()  # Boolean indicating if current user sent the last message
+    connected_apartment = serializers.SerializerMethodField()  # Custom field for apartment connecting users
 
     class Meta:
         model = ChatRoom
         fields = ['id', 'participants', 'created_at', 'last_message_at', 'last_message', 'other_user_last_seen', 'unread_count', 
-                 'last_message_sender_id', 'last_message_read_at', 'was_last_message_sent_by_me']
+                 'last_message_sender_id', 'last_message_read_at', 'was_last_message_sent_by_me', 'connected_apartment']
 
     def get_last_message(self, obj):
         """
@@ -222,7 +231,55 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
             return None
 
-        last_message = obj.messages.last()
-        if last_message:
-            return last_message.sender.id == request.user.id
-        return None
+        last_message = obj.messages.order_by('-timestamp').first()
+        if not last_message:
+            return None
+
+        return last_message.sender.id == request.user.id
+        
+    def get_connected_apartment(self, obj):
+        """
+        Find the apartment that connects the users in a chat room.
+        Returns the first apartment that one user owns and the other user has liked.
+        
+        Args:
+            obj (ChatRoom): The chat room instance being serialized
+            
+        Returns:
+            dict: Serialized apartment data if a connection exists
+            None: If no connecting apartment is found
+        """
+        try:
+            request = self.context.get('request')
+            if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
+                return None
+                
+            # Need at least 2 participants to find a connection
+            if obj.participants.count() < 2:
+                return None
+                
+            # Get the current user and the other user in the chat
+            current_user = request.user
+            other_user = obj.participants.exclude(id=current_user.id).first()
+            
+            if not other_user:
+                return None
+                
+            # Find apartments owned by current user that other user liked
+            current_user_apartments = Apartment.objects.filter(user=current_user)
+            for apartment in current_user_apartments:
+                liked = ApartmentUserLike.objects.filter(apartment=apartment, user=other_user, like=True).exists()
+                if liked:
+                    return ApartmentSerializer(apartment, context={'request': request}).data
+            
+            # Find apartments owned by other user that current user liked
+            other_user_apartments = Apartment.objects.filter(user=other_user)
+            for apartment in other_user_apartments:
+                liked = ApartmentUserLike.objects.filter(apartment=apartment, user=current_user, like=True).exists()
+                if liked:
+                    return ApartmentSerializer(apartment, context={'request': request}).data
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error finding connected apartment: {str(e)}")
+            return None
