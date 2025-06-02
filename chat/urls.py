@@ -18,13 +18,16 @@ router = DefaultRouter()
 # - GET /api/v1/chat/rooms/ - List all chat rooms
 # - POST /api/v1/chat/rooms/ - Create a new chat room
 # - GET /api/v1/chat/rooms/{id}/ - Get specific chat room
-# - POST /api/v1/chat/rooms/{id}/messages/ - Send message to room
+# - POST /api/v1/chat/rooms/send_message_to_user/ - Send message to user
 # - GET /api/v1/chat/rooms/{id}/messages/ - Get messages from room
 router.register('rooms', ChatViewSet, basename='chat-room')
 
 urlpatterns = [
     # Chat visualization at the backend
     path('web/', chat_view, name='chat-web'),
+
+    # Explicit POST endpoint for sending messages
+    path('rooms/send_message_to_user/', ChatViewSet.as_view({'post': 'send_message_to_user'}), name='send-message'),
 
     # Include all router-generated URLs
     # This adds all the RESTful endpoints created by the router
