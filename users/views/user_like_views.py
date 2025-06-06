@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from users.models import UserUserLike
 from apartments.models import Apartment, ApartmentUserLike
+from chat.models import ChatRoom
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,27 @@ class UserLikeView(APIView):
                 
                 action = "liked" if like else "disliked"
                 logger.info(f"User {user.id} has {action} user {target_user.id}")
+                
+                # If this is a like, create a chat room between the users
+                if like:
+                    try:
+                        # Check if room exists with both participants
+                        existing_room = ChatRoom.objects.filter(participants=user)\
+                            .filter(participants=target_user)\
+                            .first()
+                        
+                        if not existing_room:
+                            # Create new room if none exists
+                            room = ChatRoom.objects.create()
+                            room.participants.add(user, target_user)
+                            logger.info(f"Created chat room {room.id} between users {user.id} and {target_user.id}")
+                    
+                    except Exception as e:
+                        logger.error(f"Error creating chat room: {str(e)}")
+                        return Response(
+                            {"error": f"You liked the user but we couldn't create a chat room: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
                 
                 return Response(
                     {"message": f"You have {action} this user"},
