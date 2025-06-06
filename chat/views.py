@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from firebase_admin import firestore
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from .models import ChatRoom, Message
 from .serializers import ChatRoomSerializer, MessageSerializer
 from django.shortcuts import render
@@ -29,6 +30,7 @@ class ChatViewSet(viewsets.ModelViewSet):
     - GET /rooms/{id}/ - Get specific room
     - POST /rooms/send_message_to_user/ - Send message
     - GET /rooms/{id}/messages/ - Get room messages
+    - DELETE /api/v1/chat/rooms/{room_id}/ - Delete chat room
 
     WebSocket Support:
     - Messages are broadcast over WebSockets for real-time updates
@@ -425,6 +427,80 @@ class ChatViewSet(viewsets.ModelViewSet):
             logger = logging.getLogger('chat')
             logger.error(f"Error broadcasting room update: {str(e)}")
             # Continue without real-time updates if Redis is not available
+            
+    def destroy(self, request, pk=None):
+        """
+        Delete a chat room and all its messages.
+        
+        This will remove the chat room from both Django DB and Firebase.
+        Only participants of the room can delete it.
+        
+        URL Parameters:
+            pk: Room ID
+            
+        Returns:
+            204: Room deleted successfully
+            404: Room not found
+            403: User not authorized to delete this room
+        """
+        try:
+            # Get the room and verify the user is a participant
+            room = self.get_object()
+            
+            # Get room participants for notification
+            participants = list(room.participants.all())
+            participant_ids = [user.id for user in participants]
+            
+            # Get messages for Firebase deletion
+            messages = Message.objects.filter(room=room)
+            firebase_message_ids = [msg.firebase_id for msg in messages if msg.firebase_id]
+            
+            with transaction.atomic():
+                # Delete messages and room from Django DB
+                messages.delete()
+                room_id = room.id
+                room.delete()
+                
+                # Delete messages from Firebase
+                try:
+                    db = firestore.client()
+                    batch = db.batch()
+                    
+                    for firebase_id in firebase_message_ids:
+                        message_ref = db.collection('messages').document(firebase_id)
+                        batch.delete(message_ref)
+                    
+                    batch.commit()
+                except Exception as e:
+                    logger = logging.getLogger('chat')
+                    logger.error(f"Error deleting Firebase messages: {str(e)}")
+                    # Continue even if Firebase deletion fails
+                
+                # Notify all participants about room deletion
+                for user_id in participant_ids:
+                    if user_id != request.user.id:  # Don't notify the user who deleted the room
+                        try:
+                            user_group_name = f'user_{user_id}'
+                            async_to_sync(self.channel_layer.group_send)(
+                                user_group_name,
+                                {
+                                    'type': 'room_deleted',
+                                    'room_id': room_id
+                                }
+                            )
+                        except Exception as e:
+                            logger = logging.getLogger('chat')
+                            logger.error(f"Error notifying user {user_id} about room deletion: {str(e)}")
+                
+                return Response(status=status.HTTP_204_NO_CONTENT)
+                
+        except Exception as e:
+            logger = logging.getLogger('chat')
+            logger.error(f"Error deleting chat room: {str(e)}")
+            return Response(
+                {"error": "An error occurred while deleting the chat room"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def broadcast_room_update_to_user(self, user_id, room):
         """
