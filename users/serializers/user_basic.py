@@ -5,6 +5,7 @@ from users.models.questionnaire import UserResponse
 from users.serializers.questionnaire import QuestionSerializer
 from apartments.models import City
 import logging
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,13 @@ class UserBasicSerializer(serializers.ModelSerializer):
     preferred_city = serializers.SerializerMethodField()
     questionnaire_responses = serializers.SerializerMethodField()
     bio = serializers.SerializerMethodField()
+    age = serializers.SerializerMethodField()
+    occupation = serializers.SerializerMethodField()
 
     class Meta:
         model = UserDetails
         fields = ['id', 'user_id', 'email', 'first_name', 'last_name', 'phone_number', 'photo_url', 
-        'preferred_city', 'questionnaire_responses', 'bio']
+        'preferred_city', 'questionnaire_responses', 'bio', 'age', 'occupation']
         
     def get_user_id(self, obj):
         """
@@ -180,4 +183,41 @@ class UserBasicSerializer(serializers.ModelSerializer):
             return obj.about_me if hasattr(obj, 'about_me') else ""
         except Exception as e:
             logger.error(f"Error getting about_me: {str(e)}")
+            return ""
+            
+    def get_age(self, obj):
+        """
+        Calculate age from birth_date
+        """
+        try:
+            # Determine if we're dealing with User or UserDetails
+            if isinstance(obj, User):
+                user_details = UserDetails.objects.filter(user=obj).first()
+                if not user_details or not user_details.birth_date:
+                    return None
+                birth_date = user_details.birth_date
+            else:  # UserDetails
+                if not obj.birth_date:
+                    return None
+                birth_date = obj.birth_date
+                
+            # Calculate age based on birth_date
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            return age
+        except Exception as e:
+            logger.error(f"Error calculating age: {str(e)}")
+            return None
+            
+    def get_occupation(self, obj):
+        """
+        Get the user's occupation
+        """
+        try:
+            if isinstance(obj, User):
+                user_details = UserDetails.objects.filter(user=obj).first()
+                return user_details.occupation if user_details else ""
+            return obj.occupation if hasattr(obj, 'occupation') else ""
+        except Exception as e:
+            logger.error(f"Error getting occupation: {str(e)}")
             return ""

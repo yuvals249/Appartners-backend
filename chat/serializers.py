@@ -7,6 +7,8 @@ from apartments.models import Apartment
 from apartments.models.apartment_user_like import ApartmentUserLike
 from apartments.serializers.apartment import ApartmentSerializer
 import logging
+from apartments.utils.compatibility import calculate_user_compatibility
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     participants = UserBasicSerializer(many=True, read_only=True)  # List of participants with basic info
     last_message = serializers.SerializerMethodField()  # Custom field for last message
     other_user_last_seen = serializers.SerializerMethodField()  # Custom field for other user's last seen timestamp
+    compatibility_score = serializers.SerializerMethodField()  # Custom field for compatibility score between users
     unread_count = serializers.SerializerMethodField()  # Custom field for unread message count
     last_message_sender_id = serializers.SerializerMethodField()  # ID of the user who sent the last message
     last_message_read_at = serializers.SerializerMethodField()  # Timestamp when the last message was read
@@ -95,7 +98,8 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatRoom
         fields = ['id', 'participants', 'created_at', 'last_message_at', 'last_message', 'other_user_last_seen', 'unread_count', 
-                 'last_message_sender_id', 'last_message_read_at', 'was_last_message_sent_by_me', 'connected_apartment']
+                 'last_message_sender_id', 'last_message_read_at', 'was_last_message_sent_by_me', 'connected_apartment',
+                 'compatibility_score']
 
     def get_last_message(self, obj):
         """
@@ -237,6 +241,43 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
         return last_message.sender.id == request.user.id
         
+    def get_compatibility_score(self, obj):
+        """
+        Calculate the compatibility score between the current user and the other user in the chat room.
+        
+        Args:
+            obj (ChatRoom): The chat room instance being serialized
+            
+        Returns:
+            int: Compatibility score as a percentage (0-100)
+            None: If compatibility cannot be calculated
+        """
+        try:
+            request = self.context.get('request')
+            if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
+                return None
+                
+            # Need at least 2 participants to calculate compatibility
+            if obj.participants.count() < 2:
+                return None
+                
+            # Get the current user and the other user in the chat
+            current_user = request.user
+            other_user = obj.participants.exclude(id=current_user.id).first()
+            
+            if not other_user:
+                return None
+                
+            # Import here to avoid circular imports
+            
+            # Calculate compatibility and convert to percentage
+            compatibility_score = calculate_user_compatibility(current_user.id, other_user.id) * 100
+            return round(compatibility_score)
+            
+        except Exception as e:
+            logger.error(f"Error calculating compatibility score: {str(e)}")
+            return None
+            
     def get_connected_apartment(self, obj):
         """
         Find the apartment that connects the users in a chat room.

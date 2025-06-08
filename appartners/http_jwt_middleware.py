@@ -50,6 +50,7 @@ class JWTAuthMiddleware:
         auth_header = request.headers.get('Authorization')
         
         if not auth_header or not auth_header.startswith('Bearer '):
+            logger.warning(f"Missing or invalid Authorization header for request to: {request.path}. Header: {auth_header if auth_header else 'None'}")
             request.user_from_token = None
             request.token_error = Response(
                 {"error": "Authorization token required"},
@@ -74,6 +75,7 @@ class JWTAuthMiddleware:
             request.token_error = None
             
         except (ExpiredSignatureError, InvalidTokenError) as e:
+            logger.warning(f"Invalid or expired token for request to: {request.path}. Error: {str(e)}")
             request.user_from_token = None
             request.token_error = Response(
                 {"error": "Invalid or expired token"},
