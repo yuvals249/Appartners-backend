@@ -22,7 +22,7 @@ class Apartment(models.Model):
     floor = models.IntegerField()
     number_of_rooms = models.IntegerField()
     number_of_available_rooms = models.IntegerField()
-    total_price = models.DecimalField(max_digits=6, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
     available_entry_date = models.DateField()
     about = models.TextField(null=True, blank=True)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)

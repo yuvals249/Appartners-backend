@@ -135,6 +135,9 @@ class LoginView(APIView):
         # Generate both access and refresh tokens
         tokens = generate_auth_tokens(user)
 
+        # Log tokens being returned (only first few chars for security)
+        logger.info(f"Login successful for user: {user.email}. Returning tokens: Access={tokens['access'][:15]}..., Refresh={tokens['refresh'][:15]}...")
+
         return Response(
             {
                 "UserAuth": tokens['access'],
@@ -201,6 +204,10 @@ class RegisterView(APIView):
             
             # Generate both access and refresh tokens
             tokens = generate_auth_tokens(user)
+            
+            # Log tokens being returned (only first few chars for security)
+            logger = logging.getLogger('authentication')
+            logger.info(f"Registration successful for user: {user.email}. Returning tokens: Access={tokens['access'][:15]}..., Refresh={tokens['refresh'][:15]}...")
             
             return Response(
                 {
