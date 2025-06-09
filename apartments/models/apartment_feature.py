@@ -14,5 +14,13 @@ class ApartmentFeature(models.Model):
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name="apartment_features")
     feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name="feature_apartments")
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['apartment', 'feature'],
+                name='unique_apartment_feature'
+            )
+        ]
+
     def __str__(self):
         return f"{self.apartment.id} - {self.feature.name}"
