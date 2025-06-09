@@ -16,3 +16,11 @@ class ApartmentUserLike(models.Model):
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name="apartment_likes")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_likes")
     like = models.BooleanField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['apartment', 'user'],
+                name='unique_apartment_user_like'
+            )
+        ]
