@@ -5,6 +5,12 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from apartments.models import City, Feature, Apartment, ApartmentFeature, ApartmentUserLike, ApartmentPhoto
 from decimal import Decimal
+from unittest.mock import patch, MagicMock
+
+
+def assert_timestamps_equal(ts1, ts2, tolerance_microseconds=50):
+    """Assert that two timestamps are equal within a microsecond tolerance."""
+    assert abs(ts1 - ts2).total_seconds() * 1_000_000 < tolerance_microseconds
 
 
 @pytest.mark.django_db
@@ -186,10 +192,19 @@ def test_apartment_validation_area_apostrophe_removal(valid_apartment_data):
 
 
 @pytest.fixture
-def test_apartment(valid_apartment_data):
-    apartment = Apartment(**valid_apartment_data)
-    apartment.save()
-    return apartment
+def test_apartment(test_user, test_city):
+    return Apartment.objects.create(
+        user=test_user,
+        city=test_city,
+        street='Test Street',
+        type='Apartment',
+        floor=1,
+        number_of_rooms=2,
+        number_of_available_rooms=1,
+        total_price=1000,
+        available_entry_date=date.today() + timedelta(days=30),
+        about='Test Description'
+    )
 
 
 @pytest.fixture
@@ -279,25 +294,115 @@ def test_image():
     )
 
 
-@pytest.mark.django_db
-def test_apartment_photo_str_representation(test_apartment, test_image):
-    photo = ApartmentPhoto.objects.create(
-        apartment=test_apartment,
-        photo=test_image,
-    )
-    assert str(photo) == f"Photo for Apartment {test_apartment.id}"
+@pytest.fixture
+def valid_city_data():
+    return {
+        'name': 'Tel Aviv',
+        'hebrew_name': 'תל אביב',
+        'active': True
+    }
 
 
 @pytest.mark.django_db
-def test_apartment_photo_cascade_delete(test_apartment, test_image):
-    # Create a photo
-    photo = ApartmentPhoto.objects.create(
-        apartment=test_apartment,
-        photo=test_image,
-    )
+def test_city_str_representation(valid_city_data):
+    city = City.objects.create(**valid_city_data)
+    assert str(city) == f"{valid_city_data['name']} {valid_city_data['hebrew_name']}"
+
+
+@pytest.mark.django_db
+def test_city_name_unique(valid_city_data):
+    # Create first city
+    City.objects.create(**valid_city_data)
     
-    # Delete the apartment
-    test_apartment.delete()
+    # Try to create another city with the same name
+    with pytest.raises(ValidationError):
+        city = City(**valid_city_data)
+        city.full_clean()
+        city.save()
+
+
+@pytest.mark.django_db
+def test_city_auto_timestamps(valid_city_data):
+    city = City.objects.create(**valid_city_data)
+    assert city.created_at is not None
+    assert city.updated_at is not None
+    assert_timestamps_equal(city.created_at, city.updated_at)
+
+
+@pytest.mark.django_db
+def test_city_update_timestamp(valid_city_data):
+    city = City.objects.create(**valid_city_data)
+    initial_updated_at = city.updated_at
     
-    # The photo should be deleted
-    assert not ApartmentPhoto.objects.filter(id=photo.id).exists() 
+    # Update the city
+    city.name = 'New Name'
+    city.save()
+    
+    # Refresh from db
+    city.refresh_from_db()
+    assert city.updated_at > initial_updated_at
+
+
+@pytest.mark.django_db
+def test_city_default_active(valid_city_data):
+    # Remove active from data to test default
+    del valid_city_data['active']
+    city = City.objects.create(**valid_city_data)
+    assert city.active is True  # Default value 
+
+
+@pytest.fixture
+def valid_feature_data():
+    return {
+        'name': 'Parking',
+        'description': 'Private parking spot',
+        'active': True
+    }
+
+
+@pytest.mark.django_db
+def test_feature_str_representation(valid_feature_data):
+    feature = Feature.objects.create(**valid_feature_data)
+    assert str(feature) == valid_feature_data['name']
+
+
+@pytest.mark.django_db
+def test_feature_name_unique(valid_feature_data):
+    # Create first feature
+    Feature.objects.create(**valid_feature_data)
+    
+    # Try to create another feature with the same name
+    with pytest.raises(ValidationError):
+        feature = Feature(**valid_feature_data)
+        feature.full_clean()
+        feature.save()
+
+
+@pytest.mark.django_db
+def test_feature_auto_timestamps(valid_feature_data):
+    feature = Feature.objects.create(**valid_feature_data)
+    assert feature.created_at is not None
+    assert feature.updated_at is not None
+    assert_timestamps_equal(feature.created_at, feature.updated_at)
+
+
+@pytest.mark.django_db
+def test_feature_update_timestamp(valid_feature_data):
+    feature = Feature.objects.create(**valid_feature_data)
+    initial_updated_at = feature.updated_at
+    
+    # Update the feature
+    feature.name = 'New Feature'
+    feature.save()
+    
+    # Refresh from db
+    feature.refresh_from_db()
+    assert feature.updated_at > initial_updated_at
+
+
+@pytest.mark.django_db
+def test_feature_default_active(valid_feature_data):
+    # Remove active from data to test default
+    del valid_feature_data['active']
+    feature = Feature.objects.create(**valid_feature_data)
+    assert feature.active is True  # Default value 

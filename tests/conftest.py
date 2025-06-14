@@ -12,9 +12,44 @@ def api_client():
 @pytest.fixture(autouse=True)
 def mock_firebase(monkeypatch, settings):
     if getattr(settings, "FIREBASE_MOCK", False):
-        stub = types.SimpleNamespace()
-        stub.client = lambda: stub              # firestore.client() → stub
-        # create / replace firebase_admin.firestore safely
+        class FirebaseStub:
+            def __init__(self):
+                self._counter = 0
+                self.SERVER_TIMESTAMP = datetime.datetime.now()
+
+            def client(self):
+                return self
+
+            def collection(self, name):
+                return self
+
+            def add(self, data):
+                self._counter += 1
+                firebase_id = f'test_firebase_id_{self._counter}'
+                if not hasattr(self, '_messages'):
+                    self._messages = {}
+                self._messages[firebase_id] = data
+                return (None, type('FirebaseDoc', (), {'id': firebase_id})())
+
+            def document(self, doc_id):
+                return self
+
+            def update(self, data):
+                return None
+
+            def delete(self):
+                return None
+
+            def commit(self):
+                return None
+
+            def batch(self):
+                return self
+
+            def get(self):
+                return type('FirebaseDoc', (), {'to_dict': lambda: {}})()
+
+        stub = FirebaseStub()
         monkeypatch.setattr("firebase_admin.firestore", stub, raising=False)
 
 @pytest.fixture
