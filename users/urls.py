@@ -10,6 +10,8 @@ from .views.device_token_views import DeviceTokenView
 from .views.user_like_views import UserLikeView
 from .views.token_refresh_views import TokenRefreshView
 from .views.logout_views import LogoutView
+from .views.otp_views import SendOTPView, VerifyOTPView
+from .views.password_reset_views import ResetPasswordView
 
 
 users_urlpatterns = [
@@ -30,6 +32,11 @@ auth_urlpatterns = [
     path('validate-unique/', ValidateUniqueView.as_view(), name='validate-unique'),
     path('payload/', CityPayloadView.as_view(), name='city-payload'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    # General OTP endpoints
+    path('otp/send/', SendOTPView.as_view(), name='send-otp'),
+    path('otp/verify/', VerifyOTPView.as_view(), name='verify-otp'),
+    # Password reset specific endpoints
+    path('reset-password/', ResetPasswordView.as_view(), name='password-reset-reset-password'),
 ]
 
 questionnaire_urlpatterns = [

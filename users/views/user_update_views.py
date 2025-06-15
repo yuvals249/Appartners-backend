@@ -4,11 +4,13 @@ Views for updating user information.
 import logging
 from django.contrib.auth.models import User
 from django.db import transaction
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import cloudinary.uploader
+
+from users.utils.password_validation import validate_password
 
 # Authentication now handled by middleware
 from users.models import UserDetails
@@ -48,10 +50,12 @@ class UpdatePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        # Validate new password
-        if len(new_password) < 8:
+        # Validate new password using our common validation utility
+        try:
+            validate_password(new_password)
+        except serializers.ValidationError as e:
             return Response(
-                {"error": "New password must be at least 8 characters long"},
+                {"error": str(e.detail[0]) if hasattr(e, 'detail') else str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
