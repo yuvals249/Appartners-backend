@@ -203,6 +203,184 @@ paths:
       - Authenticate
       summary: Refresh authentication tokens
       description: Generates new access and refresh tokens using a valid refresh token.
+  
+  /authenticate/password-reset/send-otp/:
+    post:
+      tags:
+      - Authenticate
+      summary: Send OTP for password reset
+      description: Sends a one-time password to the user's email for password reset.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: "User's email address"
+              required:
+                - email
+        required: true
+      responses:
+        "200":
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "OTP sent to your email"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No user found with this email address"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    
+  /authenticate/password-reset/verify-otp/:
+    post:
+      tags:
+      - Authenticate
+      summary: Verify OTP for password reset
+      description: Verifies the OTP sent to the user's email and returns a reset token.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: "User's email address"
+                otp_code:
+                  type: string
+                  description: "OTP code received via email"
+              required:
+                - email
+                - otp_code
+        required: true
+      responses:
+        "200":
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reset_token:
+                    type: string
+                    format: jwt
+                    description: "Token for resetting password (valid for 15 minutes)"
+        "400":
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired OTP"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No user found with this email address"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    
+  /authenticate/password-reset/reset-password/:
+    post:
+      tags:
+      - Authenticate
+      summary: Reset password
+      description: Resets the user's password using the reset token obtained from the verify-otp endpoint.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reset_token:
+                  type: string
+                  format: jwt
+                  description: "Token received from verify-otp endpoint"
+                new_password:
+                  type: string
+                  format: password
+                  description: "New password to set"
+              required:
+                - reset_token
+                - new_password
+        required: true
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successful"
+                  UserAuth:
+                    type: string
+                    format: jwt
+                    description: "Access token for API authentication"
+                  RefreshToken:
+                    type: string
+                    format: jwt
+                    description: "Refresh token for obtaining new access tokens"
+        "400":
+          description: Invalid token or password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired reset token"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
       requestBody:
         content:
           application/json:

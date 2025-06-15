@@ -6,5 +6,6 @@ from .user_presence import UserPresence
 from .device_token import DeviceToken
 from .user_like import UserUserLike
 from .blacklisted_token import BlacklistedToken
+from .otp import OTP
 
-__all__ = ["QuestionnaireTemplate", "Question", "UserResponse", "UserDetails", "UserPreferences", "UserPreferencesFeatures", "UserPresence", "DeviceToken", "UserUserLike", "BlacklistedToken"]
+__all__ = ["QuestionnaireTemplate", "Question", "UserResponse", "UserDetails", "UserPreferences", "UserPreferencesFeatures", "UserPresence", "DeviceToken", "UserUserLike", "BlacklistedToken", "OTP"]

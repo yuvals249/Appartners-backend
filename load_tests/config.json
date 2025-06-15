@@ -1,0 +1,23 @@
+{
+  "default": {
+    "host": "http://localhost:8000",
+    "users": 10,
+    "spawn_rate": 1,
+    "run_time": "5m"
+  },
+  "light_load": {
+    "users": 5,
+    "spawn_rate": 1,
+    "run_time": "3m"
+  },
+  "medium_load": {
+    "users": 20,
+    "spawn_rate": 2,
+    "run_time": "5m"
+  },
+  "heavy_load": {
+    "users": 50,
+    "spawn_rate": 5,
+    "run_time": "10m"
+  }
+}
