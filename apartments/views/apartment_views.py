@@ -68,8 +68,20 @@ class ApartmentCreateView(APIView):
         return request_data
     
     def _process_location_data(self, request_data):
-        lat, lon = request_data['latitude'], request_data['longitude']
-
+        # Check if latitude and longitude exist in request data
+        if 'latitude' not in request_data or 'longitude' not in request_data:
+            # Skip location processing if values don't exist
+            return request_data
+            
+        # Try to convert to float, skip processing if conversion fails
+        try:
+            lat = float(request_data['latitude'])
+            lon = float(request_data['longitude'])
+        except (ValueError, TypeError):
+            # Skip location processing if values can't be converted to float
+            return request_data
+            
+        # Only proceed with location processing if we have valid coordinates
         # Get area from coordinates
         area = get_area_from_coordinates(lat, lon)
         if area:

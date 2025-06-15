@@ -381,60 +381,6 @@ paths:
                 properties:
                   error:
                     type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refresh_token:
-                  type: string
-                  format: jwt
-                  description: "The refresh token obtained during login or registration"
-        required: true
-      responses:
-        "200":
-          description: Tokens refreshed successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  UserAuth:
-                    type: string
-                    format: jwt
-                    description: "New access token for API authentication (expires in 1 hour)"
-                  RefreshToken:
-                    type: string
-                    format: jwt
-                    description: "New refresh token for obtaining future access tokens (expires in 180 days)"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-        "401":
-          description: Invalid or expired refresh token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-        "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
   /users/user-details/:
     get:
       tags:
@@ -1618,29 +1564,6 @@ components:
           description: Preferred neighborhood or area (optional)
       required:
         - city
-      description: Schema for updating user preferences.      type: object
-      properties:
-        city:
-          type: string
-        move_in_date:
-          type: string
-          format: date
-        features:
-          type: array
-          items:
-            type: string
-        number_of_roommates:
-          type: integer
-        price_range:
-          $ref: '#/components/schemas/UserPreferencesRequest_price_range'
-        max_floor:
-          type: integer
-          nullable: true
-          description: Maximum floor preference
-        area:
-          type: string
-          nullable: true
-          description: Preferred neighborhood or area
       description: Schema for updating user preferences.
     ApartmentPostPayloadResponse:
       type: object
@@ -1732,10 +1655,10 @@ components:
           format: date
         about:
           type: string
-        feature_details:
+        features:
           type: array
           items:
-            $ref: '#/components/schemas/Feature'
+            type: string
         created_at:
           type: string
           format: date-time
