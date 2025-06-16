@@ -1,67 +1,15 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient
-from chat.models import ChatRoom, Message
-from django.contrib.auth.models import User
-from users.models import UserDetails
-from chat.serializers import MessageSerializer
-from appartners.utils import generate_jwt
+from chat.models import Message
 
 pytestmark = pytest.mark.django_db
 
-@pytest.fixture
-def api_client():
-    """Fixture ליצירת APIClient"""
-    return APIClient()
-
-@pytest.fixture
-def test_user1():
-    """Fixture ליצירת משתמש ראשון לבדיקות"""
-    return User.objects.create_user(
-        username='user1@example.com',
-        email='user1@example.com',
-        password='testpass123',
-        first_name='Test',
-        last_name='User1'
-    )
-
-@pytest.fixture
-def test_user2():
-    """Fixture ליצירת משתמש שני לבדיקות"""
-    return User.objects.create_user(
-        username='user2@example.com',
-        email='user2@example.com',
-        password='testpass123',
-        first_name='Test',
-        last_name='User2'
-    )
-
-@pytest.fixture
-def test_chat_room(test_user1, test_user2):
-    """Fixture ליצירת חדר צ'אט לבדיקות"""
-    room = ChatRoom.objects.create(name='Test Room')
-    room.participants.add(test_user1, test_user2)
-    return room
-
-@pytest.fixture
-def test_token(test_user1):
-    """Fixture ליצירת טוקן לבדיקות"""
-    return generate_jwt(test_user1, 'access')
-
-@pytest.fixture
-def test_message(test_chat_room, test_user1):
-    return Message.objects.create(
-        room=test_chat_room,
-        sender=test_user1,
-        content='Test message',
-        firebase_id='test_firebase_id_123'
-    )
 
 @pytest.mark.django_db
 def test_send_message(api_client, test_user1, test_user2, test_token):
-    """בדיקת שליחת הודעה"""
-    # יצירת חדר צ'אט קודם
+    """Test sending a message"""
+    # Create a chat room first
     response = api_client.post(
         reverse('chat-room-list'),
         {'participant_id': test_user2.id},
@@ -71,7 +19,7 @@ def test_send_message(api_client, test_user1, test_user2, test_token):
     assert response.status_code == status.HTTP_200_OK
     room_id = response.data['id']
 
-    # שליחת הודעה
+    # Send a message
     url = reverse('send-message')
     data = {
         'recipient_id': test_user2.id,
@@ -82,7 +30,7 @@ def test_send_message(api_client, test_user1, test_user2, test_token):
         url, 
         data, 
         format='json',
-        HTTP_AUTHORIZATION=f'Bearer {test_token}'  # הוספת Authorization header
+        HTTP_AUTHORIZATION=f'Bearer {test_token}'  # Add Authorization header
     )
     assert response.status_code == status.HTTP_200_OK
     assert response.data['message']['content'] == 'New message'
@@ -90,7 +38,7 @@ def test_send_message(api_client, test_user1, test_user2, test_token):
 
 @pytest.mark.django_db
 def test_send_message_unauthorized(api_client, test_user2):
-    """בדיקת שליחת הודעה ללא הרשאה"""
+    """Test sending a message without permission"""
     url = reverse('send-message')
     data = {
         'recipient_id': test_user2.id,
@@ -103,7 +51,7 @@ def test_send_message_unauthorized(api_client, test_user2):
 
 @pytest.mark.django_db
 def test_send_message_to_self(api_client, test_user1, test_token):
-    """בדיקת שליחת הודעה לעצמי"""
+    """Test sending a message to myself"""
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {test_token}')
     
     url = reverse('send-message')
@@ -118,12 +66,12 @@ def test_send_message_to_self(api_client, test_user1, test_token):
 
 @pytest.mark.django_db
 def test_send_message_invalid_recipient(api_client, test_user1, test_token):
-    """בדיקת שליחת הודעה למשתמש לא קיים"""
+    """Test sending a message to a non-existent user"""
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {test_token}')
     
     url = reverse('send-message')
     data = {
-        'recipient_id': 99999,  # לא קיים
+        'recipient_id': 99999,  # Non-existent
         'content': 'New message'
     }
     
@@ -133,13 +81,13 @@ def test_send_message_invalid_recipient(api_client, test_user1, test_token):
 
 @pytest.mark.django_db
 def test_send_message_missing_fields(api_client, test_user1, test_token):
-    """בדיקת שליחת הודעה ללא שדות חובה"""
+    """Test sending a message without required fields"""
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {test_token}')
     
     url = reverse('send-message')
     data = {
         'recipient_id': test_user1.id
-        # חסר content
+        # Missing content
     }
     
     response = api_client.post(url, data, format='json')
@@ -148,12 +96,12 @@ def test_send_message_missing_fields(api_client, test_user1, test_token):
 
 @pytest.mark.django_db
 def test_get_messages(api_client, test_user1, test_user2, test_chat_room, test_token):
-    """בדיקת קבלת הודעות מחדר"""
-    # יצירת הודעות
+    """Test retrieving messages from a room"""
+    # Create messages
     for i in range(3):
         Message.objects.create(
             room=test_chat_room,
-            sender=test_user2,  # שולח הוא test_user2
+            sender=test_user2,  # Sender is test_user2
             content=f"Message {i}",
             firebase_id=f"test_firebase_id_{i}"
         )
@@ -165,13 +113,13 @@ def test_get_messages(api_client, test_user1, test_user2, test_chat_room, test_t
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 3
     assert all(msg['content'].startswith('Message') for msg in response.data)
-    assert all(msg['is_read'] for msg in response.data)  # כל ההודעות אמורות להיות מסומנות כנקראו
-    assert all(msg['sender']['email'] == test_user2.email for msg in response.data)  # כל ההודעות נשלחו על ידי test_user2
+    assert all(msg['is_read'] for msg in response.data)  # All messages should be marked as read
+    assert all(msg['sender']['email'] == test_user2.email for msg in response.data)  # All messages were sent by test_user2
 
 @pytest.mark.django_db
 def test_create_message(api_client, test_user1, test_user2, test_token):
-    """בדיקת יצירת הודעה"""
-    # יצירת חדר צ'אט
+    """Test creating a message"""
+    # Create a chat room
     response = api_client.post(
         reverse('chat-room-list'),
         {'participant_id': test_user2.id},
@@ -181,7 +129,7 @@ def test_create_message(api_client, test_user1, test_user2, test_token):
     assert response.status_code == status.HTTP_200_OK
     room_id = response.data['id']
 
-    # שליחת הודעה
+    # Send a message
     response = api_client.post(
         reverse('send-message'),
         {
@@ -197,7 +145,7 @@ def test_create_message(api_client, test_user1, test_user2, test_token):
 
 @pytest.mark.django_db
 def test_create_message_unauthorized(api_client, test_user1, test_user2):
-    """בדיקת יצירת הודעה ללא הרשאה"""
+    """Test creating a message without permission"""
     response = api_client.post(
         reverse('send-message'),
         {
@@ -210,8 +158,8 @@ def test_create_message_unauthorized(api_client, test_user1, test_user2):
 
 @pytest.mark.django_db
 def test_create_message_not_participant(api_client, test_user1, test_user2, test_token):
-    """בדיקת יצירת הודעה למשתמש שלא משתתף בחדר"""
-    # שליחת הודעה למשתמש שלא משתתף בחדר
+    """Test creating a message for a user not in the room"""
+    # Send a message to a user not in the room
     response = api_client.post(
         reverse('send-message'),
         {
@@ -227,8 +175,8 @@ def test_create_message_not_participant(api_client, test_user1, test_user2, test
 
 @pytest.mark.django_db
 def test_list_messages(api_client, test_user1, test_user2, test_token, test_chat_room):
-    """בדיקת קבלת רשימת הודעות מחדר"""
-    # יצירת כמה הודעות
+    """Test retrieving a list of messages from a room"""
+    # Create some messages
     for i in range(3):
         Message.objects.create(
             room=test_chat_room,
@@ -237,7 +185,7 @@ def test_list_messages(api_client, test_user1, test_user2, test_token, test_chat
             firebase_id=f'test_firebase_id_{i}'
         )
 
-    # קבלת ההודעות
+    # Retrieve the messages
     response = api_client.get(
         reverse('chat-room-messages', kwargs={'pk': test_chat_room.id}),
         HTTP_AUTHORIZATION=f'Bearer {test_token}'
@@ -250,8 +198,8 @@ def test_list_messages(api_client, test_user1, test_user2, test_token, test_chat
 
 @pytest.mark.django_db
 def test_retrieve_message(api_client, test_user1, test_user2, test_token, test_chat_room):
-    """בדיקת קבלת הודעה ספציפית"""
-    # יצירת הודעה
+    """Test retrieving a specific message"""
+    # Create a message
     message = Message.objects.create(
         room=test_chat_room,
         sender=test_user2,
@@ -259,7 +207,7 @@ def test_retrieve_message(api_client, test_user1, test_user2, test_token, test_c
         firebase_id='test_firebase_id_retrieve'
     )
 
-    # קבלת ההודעה
+    # Retrieve the message
     response = api_client.get(
         reverse('chat-room-messages', kwargs={'pk': test_chat_room.id}),
         HTTP_AUTHORIZATION=f'Bearer {test_token}'
@@ -271,16 +219,16 @@ def test_retrieve_message(api_client, test_user1, test_user2, test_token, test_c
 
 @pytest.mark.django_db
 def test_update_message(api_client, test_user1, test_user2, test_chat_room, test_token):
-    """בדיקת עדכון הודעה"""
-    # יצירת הודעה
+    """Test updating a message"""
+    # Create a message
     message = Message.objects.create(
         room=test_chat_room,
         sender=test_user1,
         content="Original message",
-        firebase_id='test_firebase_id_update'  # הוספת firebase_id
+        firebase_id='test_firebase_id_update'  # Add firebase_id
     )
 
-    # שליחת הודעה חדשה (לא ניתן לעדכן הודעות קיימות)
+    # Send a new message (cannot update existing messages)
     response = api_client.post(
         reverse('send-message'),
         {
@@ -296,16 +244,16 @@ def test_update_message(api_client, test_user1, test_user2, test_chat_room, test
 
 @pytest.mark.django_db
 def test_update_message_unauthorized(api_client, test_user1, test_user2, test_chat_room):
-    """בדיקת עדכון הודעה על ידי משתמש לא מורשה"""
-    # יצירת הודעה
+    """Test updating a message by an unauthorized user"""
+    # Create a message
     message = Message.objects.create(
         room=test_chat_room,
         sender=test_user2,
         content="Original message",
-        firebase_id='test_firebase_id_update_unauth'  # הוספת firebase_id
+        firebase_id='test_firebase_id_update_unauth'  # Add firebase_id
     )
 
-    # ניסיון לעדכן הודעה (לא ניתן לעדכן הודעות קיימות)
+    # Attempt to update a message (cannot update existing messages)
     response = api_client.post(
         reverse('send-message'),
         {
@@ -319,8 +267,8 @@ def test_update_message_unauthorized(api_client, test_user1, test_user2, test_ch
 
 @pytest.mark.django_db
 def test_delete_message(api_client, test_user1, test_chat_room, test_token):
-    """בדיקת מחיקת הודעה"""
-    # יצירת הודעה
+    """Test deleting a message"""
+    # Create a message
     message = Message.objects.create(
         room=test_chat_room,
         sender=test_user1,
@@ -328,7 +276,7 @@ def test_delete_message(api_client, test_user1, test_chat_room, test_token):
         firebase_id='test_firebase_id_delete'
     )
 
-    # מחיקת חדר הצ'אט (זה ימחק גם את כל ההודעות)
+    # Delete the chat room (this will delete all messages)
     response = api_client.delete(
         reverse('chat-room-detail', kwargs={'pk': test_chat_room.id}),
         HTTP_AUTHORIZATION=f'Bearer {test_token}'
@@ -338,8 +286,8 @@ def test_delete_message(api_client, test_user1, test_chat_room, test_token):
 
 @pytest.mark.django_db
 def test_delete_message_unauthorized(api_client, test_user2, test_chat_room):
-    """בדיקת מחיקת הודעה על ידי משתמש לא מורשה"""
-    # יצירת הודעה
+    """Test deleting a message by an unauthorized user"""
+    # Create a message
     message = Message.objects.create(
         room=test_chat_room,
         sender=test_user2,
@@ -347,7 +295,7 @@ def test_delete_message_unauthorized(api_client, test_user2, test_chat_room):
         firebase_id='test_firebase_id_delete_unauth'
     )
 
-    # ניסיון למחוק חדר צ'אט ללא הרשאה
+    # Attempt to delete the chat room without permission
     response = api_client.delete(
         reverse('chat-room-detail', kwargs={'pk': test_chat_room.id})
     )
@@ -356,20 +304,20 @@ def test_delete_message_unauthorized(api_client, test_user2, test_chat_room):
 
 @pytest.mark.django_db
 def test_mark_message_read(api_client, test_user1, test_user2, test_chat_room, test_token):
-    """בדיקת סימון הודעה כנקראה"""
-    # יצירת הודעה מהמשתמש השני
+    """Test marking a message as read"""
+    # Create a message from the second user
     message = Message.objects.create(
         room=test_chat_room,
-        sender=test_user2,  # שינוי: שולח הוא המשתמש השני
+        sender=test_user2,  # Changed: Sender is the second user
         content="Test message",
-        firebase_id='test_firebase_id_mark_read'  # הוספת firebase_id
+        firebase_id='test_firebase_id_mark_read'  # Add firebase_id
     )
 
-    # קבלת ההודעות (זה יסמן אותן כנקראו)
+    # Retrieve the messages (this will mark them as read)
     response = api_client.get(
         reverse('chat-room-messages', kwargs={'pk': test_chat_room.id}),
         HTTP_AUTHORIZATION=f'Bearer {test_token}'
     )
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['read_at'] is not None  # עכשיו זה אמור לעבוד כי ההודעה היא מהמשתמש השני 
+    assert response.data[0]['read_at'] is not None  # Now it should work because the message is from the second user 

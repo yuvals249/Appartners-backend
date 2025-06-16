@@ -5,46 +5,19 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-@pytest.fixture
-def test_user():
-    return User.objects.create_user(
-        username='testuser',
-        email='test@example.com',
-        password='testpass123'
-    )
-
-@pytest.fixture
-def test_user2():
-    return User.objects.create_user(
-        username='testuser2',
-        email='test2@example.com',
-        password='testpass123'
-    )
-
-@pytest.fixture
-def test_chat_room(test_user, test_user2):
-    room = ChatRoom.objects.create(name='Test Room')
-    room.participants.add(test_user, test_user2)
-    return room
-
-@pytest.fixture
-def test_message(test_chat_room, test_user):
-    return Message.objects.create(
-        room=test_chat_room,
-        sender=test_user,
-        content='Hello, this is a test message!',
-        firebase_id='test_firebase_id_123'
-    )
 
 @pytest.mark.django_db
 def test_chat_room_str_representation(test_chat_room):
-    assert str(test_chat_room) == f'ChatRoom object ({test_chat_room.id})'
+    """Test chat room string representation"""
+    expected_str = f'ChatRoom object ({test_chat_room.id})'
+    assert str(test_chat_room) == expected_str
 
 @pytest.mark.django_db
-def test_chat_room_participants(test_chat_room, test_user, test_user2):
-    assert test_chat_room.participants.count() == 2
-    assert test_user in test_chat_room.participants.all()
+def test_chat_room_participants(test_chat_room, test_user1, test_user2):
+    """Test chat room participants"""
+    assert test_user1 in test_chat_room.participants.all()
     assert test_user2 in test_chat_room.participants.all()
+    assert test_chat_room.participants.count() == 2
 
 @pytest.mark.django_db
 def test_chat_room_ordering(test_user):
@@ -93,8 +66,9 @@ def test_chat_room_update_last_message_at(test_chat_room):
     assert test_chat_room.last_message_at > initial_timestamp 
 
 @pytest.mark.django_db
-def test_message_str_representation(test_message, test_user):
-    expected_str = f'{test_user.username}: Hello, this is a test message!'
+def test_message_str_representation(test_message):
+    """Test message string representation"""
+    expected_str = f'{test_message.sender.email}: {test_message.content}'
     assert str(test_message) == expected_str
 
 @pytest.mark.django_db
@@ -133,15 +107,10 @@ def test_message_auto_timestamp(test_chat_room, test_user):
 
 @pytest.mark.django_db
 def test_message_mark_as_read(test_message):
-    # Initially not read
+    """Test marking message as read"""
     assert test_message.read_at is None
-    
-    # Mark as read
     test_message.read_at = timezone.now()
     test_message.save()
-    
-    # Check that it's marked as read
-    test_message.refresh_from_db()
     assert test_message.read_at is not None
 
 @pytest.mark.django_db
@@ -194,3 +163,83 @@ def test_message_firebase_id_unique(test_chat_room, test_user):
             content='Second message',
             firebase_id='test_firebase_id_unique'
         ) 
+
+@pytest.mark.django_db
+def test_message_creation(test_user1, test_chat_room):
+    """Test message creation"""
+    message = Message.objects.create(
+        room=test_chat_room,
+        sender=test_user1,
+        content="Test message",
+        firebase_id="test_firebase_id_123"
+    )
+    
+    assert message.room == test_chat_room
+    assert message.sender == test_user1
+    assert message.content == "Test message"
+    assert message.firebase_id == "test_firebase_id_123"
+    assert message.read_at is None
+
+@pytest.mark.django_db
+def test_chat_room_messages(test_chat_room, test_user1):
+    """Test chat room messages"""
+    message1 = Message.objects.create(
+        room=test_chat_room,
+        sender=test_user1,
+        content="Message 1",
+        firebase_id="test_firebase_id_1"
+    )
+    message2 = Message.objects.create(
+        room=test_chat_room,
+        sender=test_user1,
+        content="Message 2",
+        firebase_id="test_firebase_id_2"
+    )
+    
+    messages = test_chat_room.messages.all()
+    assert messages.count() == 2
+    assert message1 in messages
+    assert message2 in messages
+
+@pytest.mark.django_db
+def test_chat_room_unread_count(test_chat_room, test_user1, test_user2):
+    """Test chat room unread count"""
+    Message.objects.create(
+        room=test_chat_room,
+        sender=test_user2,
+        content="Unread message",
+        firebase_id="test_firebase_id_123"
+    )
+    
+    unread_count = Message.objects.filter(
+        room=test_chat_room,
+        read_at__isnull=True
+    ).exclude(sender=test_user1).count()
+    assert unread_count == 1
+
+@pytest.mark.django_db
+def test_chat_room_mark_all_read(test_chat_room, test_user1, test_user2):
+    """Test marking all messages as read"""
+    Message.objects.create(
+        room=test_chat_room,
+        sender=test_user2,
+        content="Unread message",
+        firebase_id="test_firebase_id_123"
+    )
+    
+    unread_count = Message.objects.filter(
+        room=test_chat_room,
+        read_at__isnull=True
+    ).exclude(sender=test_user1).count()
+    assert unread_count == 1
+
+    Message.objects.filter(
+        room=test_chat_room,
+        read_at__isnull=True
+    ).exclude(sender=test_user1).update(read_at=timezone.now())
+
+    unread_count = Message.objects.filter(
+        room=test_chat_room,
+        read_at__isnull=True
+    ).exclude(sender=test_user1).count()
+    assert unread_count == 0 

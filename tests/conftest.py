@@ -1,16 +1,19 @@
-import types
 import pytest
 import jwt
 import datetime
 from rest_framework.test import APIClient
 from django.conf import settings
+from unittest.mock import Mock
+from django.db.models.query import QuerySet
 
 @pytest.fixture
 def api_client():
+    """Fixture that returns a DRF API client"""
     return APIClient()
 
 @pytest.fixture(autouse=True)
 def mock_firebase(monkeypatch, settings):
+    """Fixture that mocks Firebase for testing"""
     if getattr(settings, "FIREBASE_MOCK", False):
         class FirebaseStub:
             def __init__(self):
