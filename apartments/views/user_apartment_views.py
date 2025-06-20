@@ -69,16 +69,16 @@ class UserLikedApartmentsView(APIView):
         user_id = request.user_from_token
         
         try:
-            # Get all apartment IDs that the user has liked
-            liked_apartment_ids = ApartmentUserLike.objects.filter(
+            # Get all apartments that the user has liked, ordered by like time
+            liked_apartments_with_likes = ApartmentUserLike.objects.filter(
                 user_id=user_id, 
                 like=True
-            ).values_list('apartment_id', flat=True)
+            ).select_related('apartment').order_by('-created_at')
             
-            # Get the actual apartments
-            liked_apartments = Apartment.objects.filter(id__in=liked_apartment_ids).order_by('-created_at')
+            # Extract the apartments in the correct order
+            liked_apartments = [like.apartment for like in liked_apartments_with_likes]
             
-            if not liked_apartments.exists():
+            if not liked_apartments:
                 return Response(
                     {"message": "You haven't liked any apartments yet"},
                     status=status.HTTP_200_OK
