@@ -1585,7 +1585,7 @@ components:
         - type
         - floor
         - number_of_rooms
-        - available_rooms
+        - number_of_available_rooms
         - total_price
         - available_entry_date
         - photos
@@ -1600,7 +1600,7 @@ components:
           type: integer
         number_of_rooms:
           type: integer
-        available_rooms:
+        number_of_available_rooms:
           type: integer
         total_price:
           type: number
