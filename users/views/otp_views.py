@@ -26,10 +26,11 @@ class SendOTPView(APIView):
     Request body:
         - email: User's email to send OTP to
         - purpose: Purpose of the OTP (e.g., 'password_reset', 'email_verification')
+        - validate_email: Boolean flag (default: true). If false, skip user existence check.
     
     Returns:
         - 200: OTP sent successfully
-        - 404: User with the provided email not found
+        - 404: User with the provided email not found (only when validate_email=true)
         - 500: Server error
     """
     permission_classes = [AllowAny]
@@ -37,6 +38,7 @@ class SendOTPView(APIView):
     
     def post(self, request):
         email = request.data.get('email')
+        validate_email = request.data.get('validate_email', True)  # Default to True
         
         if not email:
             return Response(
@@ -45,21 +47,36 @@ class SendOTPView(APIView):
             )
             
         try:
+            user = None
+            
             # Check if user exists with the provided email
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                return Response(
-                    {"error": "No user found with this email address"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            if validate_email:
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": "No user found with this email address"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                # If validate_email is False, try to get user but don't fail if not found
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    # User doesn't exist, we'll use email-only OTP
+                    user = None
                 
-            # Generate OTP for the user
-            otp_code = OTP.generate_otp(user)
+            # Generate OTP for the user or email
+            if user:
+                otp_code = OTP.generate_otp(user=user)
+                first_name = user.first_name or "User"
+            else:
+                otp_code = OTP.generate_otp(email=email)
+                first_name = "User"
             
             # Send OTP to user's email
             subject = "Your OTP for Appartners app"
-            message = f"Hi {user.first_name.upper()},\nYour OTP for Appartners app is: {otp_code}.\nThis OTP is valid for 5 minutes."
+            message = f"Hi {first_name.upper()},\nYour OTP for Appartners app is: {otp_code}.\nThis OTP is valid for 5 minutes."
             from_email = settings.DEFAULT_FROM_EMAIL
             recipient_list = [email]
             
@@ -95,11 +112,12 @@ class VerifyOTPView(APIView):
     Request body:
         - email: User's email
         - otp_code: OTP code to verify
+        - validate_email: Boolean flag (default: true). If false, skip user existence check.
 
     Returns:
         - 200: OTP verified successfully (with token)
         - 400: Invalid OTP
-        - 404: User not found
+        - 404: User not found (only when validate_email=true)
         - 500: Server error
     """
     permission_classes = [AllowAny]
@@ -108,6 +126,7 @@ class VerifyOTPView(APIView):
     def post(self, request):
         email = request.data.get('email')
         otp_code = request.data.get('otp_code')
+        validate_email = request.data.get('validate_email', True)  # Default to True
 
         if not email or not otp_code:
             return Response(
@@ -116,17 +135,32 @@ class VerifyOTPView(APIView):
             )
             
         try:
+            user = None
+            
             # Check if user exists with the provided email
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                return Response(
-                    {"error": "No user found with this email address"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            if validate_email:
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": "No user found with this email address"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                # If validate_email is False, try to get user but don't require it
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    # User doesn't exist, we'll verify using email-only OTP
+                    user = None
                 
             # Verify OTP
-            if not OTP.verify_otp(user, otp_code):
+            if user:
+                otp_valid = OTP.verify_otp(otp_code, user=user)
+            else:
+                otp_valid = OTP.verify_otp(otp_code, email=email)
+                
+            if not otp_valid:
                 return Response(
                     {"error": "Invalid or expired OTP"},
                     status=status.HTTP_400_BAD_REQUEST
@@ -134,14 +168,14 @@ class VerifyOTPView(APIView):
                 
             # Generate a special token
             payload = {
-                'user_id': user.id,
-                'email': user.email,
+                'user_id': user.id if user else None,
+                'email': email,
                 'exp': timezone.now() + timezone.timedelta(minutes=15),  # Token valid for 15 minutes
             }
             
             token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
             
-            logger.info(f"Token generated for user: {email}")
+            logger.info(f"Token generated for email: {email}")
             
             return Response(
                 {"token": token},

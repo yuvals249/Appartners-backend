@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+import re
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -41,8 +42,8 @@ class Apartment(models.Model):
         """
         Custom validations for cross-field constraints and field-level rules.
         """
-        if not self.type.isalpha():
-            raise ValidationError({'type': 'Must contain only letters'})
+        if not re.match("^[א-תa-zA-Z ]+$", self.type):
+            raise ValidationError({'type': 'Must contain only letters and spaces'})
 
         if self.floor <= 0 or self.floor > 100:
             raise ValidationError({'floor': 'Must be a valid integer'})
@@ -66,8 +67,8 @@ class Apartment(models.Model):
         if self.about and len(self.about) > 1000:
             raise ValidationError({'about': 'Must not exceed 1000 characters'})
 
-        if self.available_entry_date <= date.today():
-            raise ValidationError({'available_entry_date': "Must be in the future"})
+        if self.available_entry_date < date.today():
+            raise ValidationError({'available_entry_date': "Cannot be in the past"})
 
     def __str__(self):
         return f"{self.street}, {self.city.name} - {self.number_of_rooms} rooms"
