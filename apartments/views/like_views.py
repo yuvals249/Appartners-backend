@@ -117,7 +117,7 @@ class ApartmentLikersView(APIView):
             apartment_likes = ApartmentUserLike.objects.filter(
                 apartment__in=user_apartments,
                 like=True
-            ).select_related('apartment')
+            ).select_related('apartment').order_by('-created_at')
             
             # Extract liker IDs
             likers_ids = [like.user_id for like in apartment_likes]

@@ -4,6 +4,7 @@ Apartment filtering utilities for recommendations.
 import logging
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
+from django.db import connection
 
 from apartments.models import Apartment, ApartmentUserLike
 from users.models import UserPreferences
@@ -22,6 +23,7 @@ def get_user_preferences(user_id):
         UserPreferences or None if not found
     """
     try:
+        connection.close()
         return UserPreferences.objects.get(user_id=user_id)
     except UserPreferences.DoesNotExist:
         return None
@@ -37,9 +39,11 @@ def get_interacted_apartments(user_id):
     Returns:
         list: List of apartment IDs
     """
-    return ApartmentUserLike.objects.filter(
+    app =  ApartmentUserLike.objects.filter(
         user_id=user_id
     ).values_list('apartment_id', flat=True)
+    logger.debug(f'apps i liked user_id: {user_id}, apps: {app}')
+    return app
 
 
 def apply_price_filter(query, user_prefs):
@@ -200,18 +204,19 @@ def filter_apartments(user_id):
         QuerySet of filtered apartments
     """
     try:
-        # Get user preferences
-        user_prefs = get_user_preferences(user_id)
-        if not user_prefs:
-            return Apartment.objects.all()
-            
-        # Get apartments the user has already interacted with
+        # Get apartments the user has already interacted with (always exclude these)
         interacted_apartment_ids = get_interacted_apartments(user_id)
         
         # Base query excluding apartments the user has interacted with
         base_query = Apartment.objects.exclude(id__in=interacted_apartment_ids)
         
-        # Apply all filters
+        # Get user preferences
+        user_prefs = get_user_preferences(user_id)
+        if not user_prefs:
+            # If no preferences, return all apartments except interacted ones
+            return base_query
+            
+        # Apply all preference-based filters
         filtered_query = base_query
         filtered_query = apply_price_filter(filtered_query, user_prefs)
         filtered_query = apply_city_filter(filtered_query, user_prefs)
@@ -220,7 +225,7 @@ def filter_apartments(user_id):
         filtered_query = apply_date_filter(filtered_query, user_prefs)
         filtered_query = apply_max_floor_filter(filtered_query, user_prefs)
         filtered_query = apply_area_filter(filtered_query, user_prefs)
-        
+
         return filtered_query
         
     except Exception as e:

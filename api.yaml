@@ -203,35 +203,167 @@ paths:
       - Authenticate
       summary: Refresh authentication tokens
       description: Generates new access and refresh tokens using a valid refresh token.
+  
+  /authenticate/password-reset/send-otp/:
+    post:
+      tags:
+      - Authenticate
+      summary: Send OTP for password reset
+      description: Sends a one-time password to the user's email for password reset.
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                refresh_token:
+                email:
                   type: string
-                  format: jwt
-                  description: "The refresh token obtained during login or registration"
+                  format: email
+                  description: "User's email address"
+              required:
+                - email
         required: true
       responses:
         "200":
-          description: Tokens refreshed successfully
+          description: OTP sent successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  message:
+                    type: string
+                    example: "OTP sent to your email"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No user found with this email address"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    
+  /authenticate/password-reset/verify-otp/:
+    post:
+      tags:
+      - Authenticate
+      summary: Verify OTP for password reset
+      description: Verifies the OTP sent to the user's email and returns a reset token.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: "User's email address"
+                otp_code:
+                  type: string
+                  description: "OTP code received via email"
+              required:
+                - email
+                - otp_code
+        required: true
+      responses:
+        "200":
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reset_token:
+                    type: string
+                    format: jwt
+                    description: "Token for resetting password (valid for 15 minutes)"
+        "400":
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired OTP"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No user found with this email address"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    
+  /authenticate/password-reset/reset-password/:
+    post:
+      tags:
+      - Authenticate
+      summary: Reset password
+      description: Resets the user's password using the reset token obtained from the verify-otp endpoint.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reset_token:
+                  type: string
+                  format: jwt
+                  description: "Token received from verify-otp endpoint"
+                new_password:
+                  type: string
+                  format: password
+                  description: "New password to set"
+              required:
+                - reset_token
+                - new_password
+        required: true
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successful"
                   UserAuth:
                     type: string
                     format: jwt
-                    description: "New access token for API authentication (expires in 1 hour)"
+                    description: "Access token for API authentication"
                   RefreshToken:
                     type: string
                     format: jwt
-                    description: "New refresh token for obtaining future access tokens (expires in 180 days)"
+                    description: "Refresh token for obtaining new access tokens"
         "400":
-          description: Invalid request
+          description: Invalid token or password
           content:
             application/json:
               schema:
@@ -239,17 +371,9 @@ paths:
                 properties:
                   error:
                     type: string
-        "401":
-          description: Invalid or expired refresh token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-        "404":
-          description: User not found
+                    example: "Invalid or expired reset token"
+        "500":
+          description: Server error
           content:
             application/json:
               schema:
@@ -1440,29 +1564,6 @@ components:
           description: Preferred neighborhood or area (optional)
       required:
         - city
-      description: Schema for updating user preferences.      type: object
-      properties:
-        city:
-          type: string
-        move_in_date:
-          type: string
-          format: date
-        features:
-          type: array
-          items:
-            type: string
-        number_of_roommates:
-          type: integer
-        price_range:
-          $ref: '#/components/schemas/UserPreferencesRequest_price_range'
-        max_floor:
-          type: integer
-          nullable: true
-          description: Maximum floor preference
-        area:
-          type: string
-          nullable: true
-          description: Preferred neighborhood or area
       description: Schema for updating user preferences.
     ApartmentPostPayloadResponse:
       type: object
@@ -1484,7 +1585,7 @@ components:
         - type
         - floor
         - number_of_rooms
-        - available_rooms
+        - number_of_available_rooms
         - total_price
         - available_entry_date
         - photos
@@ -1499,7 +1600,7 @@ components:
           type: integer
         number_of_rooms:
           type: integer
-        available_rooms:
+        number_of_available_rooms:
           type: integer
         total_price:
           type: number
@@ -1554,10 +1655,10 @@ components:
           format: date
         about:
           type: string
-        feature_details:
+        features:
           type: array
           items:
-            $ref: '#/components/schemas/Feature'
+            type: string
         created_at:
           type: string
           format: date-time

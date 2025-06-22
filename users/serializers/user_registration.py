@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from users.models.user_details import UserDetails
+from users.utils.password_validation import validate_password
 import re
 
 
@@ -32,25 +33,9 @@ class UserRegistrationSerializer(serializers.Serializer):
     
     def validate_password(self, value):
         """
-        Validate that the password:
-        - Is at least 8 characters long
-        - Contains at least one number
-        - Contains at least one letter
-        - Contains at least one uppercase letter
+        Validate password using the common validation utility.
         """
-        if len(value) < 8:
-            raise serializers.ValidationError("Password must be at least 8 characters long")
-        
-        if not any(char.isdigit() for char in value):
-            raise serializers.ValidationError("Password must contain at least one number")
-        
-        if not any(char.isalpha() for char in value):
-            raise serializers.ValidationError("Password must contain at least one letter")
-        
-        if not any(char.isupper() for char in value):
-            raise serializers.ValidationError("Password must contain at least one uppercase letter")
-        
-        return value
+        return validate_password(value)
     
     def create(self, validated_data):
         # Extract User model data
