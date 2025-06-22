@@ -1,5 +1,4 @@
 import pytest
-import os
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 @pytest.mark.django_db
