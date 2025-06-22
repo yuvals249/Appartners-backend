@@ -93,8 +93,11 @@ def test_chat_room_serializer_with_request(test_user1, test_user2, test_chat_roo
     
     assert data['id'] == test_chat_room.id
     assert len(data['participants']) == 2
-    assert data['participants'][0]['email'] == test_user1.email
-    assert data['participants'][1]['email'] == test_user2.email
+    
+    # Find participants by email instead of assuming order
+    participant_emails = [p['email'] for p in data['participants']]
+    assert test_user1.email in participant_emails
+    assert test_user2.email in participant_emails
 
 @pytest.mark.django_db
 def test_chat_room_serializer_with_last_message(test_user1, test_user2, test_chat_room):
